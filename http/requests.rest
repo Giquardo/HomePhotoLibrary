@@ -1,0 +1,37 @@
+### Get all albums
+GET http://localhost:3000/api/albums HTTP/1.1
+
+###
+
+### Get a specific album by ID
+GET http://localhost:3000/api/albums/1 HTTP/1.1
+
+###
+
+### Add a new album
+POST http://localhost:3000/api/albums HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "AI Creations",
+  "description": "Wtf"
+}
+
+###
+
+### Update an existing album
+PUT http://localhost:3000/api/albums/3 HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "AI Creations",
+  "description": "AI images created with AI tools"
+}
+
+###
+
+### Delete an album by ID
+DELETE http://localhost:3000/api/albums/5 HTTP/1.1
+
+###
+

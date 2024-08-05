@@ -9,11 +9,11 @@ public class Album
 
     [Required]
     [MaxLength(100)]
-    public string Title { get; set; }
+    public string Title { get; set; } = string.Empty; // Initialize with default value
 
     [MaxLength(500)]
-    public string Description { get; set; }
+    public string Description { get; set; } = string.Empty; // Initialize with default value
 
     // Navigation property
-    public IList<Photo> Photos { get; set; }
+    public IList<Photo> Photos { get; set; } = new List<Photo>(); // Initialize with default value
 }
