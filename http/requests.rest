@@ -35,3 +35,22 @@ DELETE http://localhost:3000/api/albums/5 HTTP/1.1
 
 ###
 
+### Get all photos
+GET http://localhost:3000/api/photos HTTP/1.1
+
+###
+
+### Get a specific photo by ID
+GET http://localhost:3000/api/photos/1 HTTP/1.1
+
+###
+
+### Add a new photo
+POST http://localhost:3000/api/photos HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "AI Image",
+  "description": "AI image created with AI tools",
+  "url": "https://www.google.com"
+}

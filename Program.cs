@@ -14,62 +14,37 @@ if (string.IsNullOrEmpty(connectionString))
 }
 builder.Services.AddDbContext<PhotoAlbumContext>(options => options.UseMySQL(connectionString));
 
-// Reggister services
+// Register services
 builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
 
 // Register repositories
 builder.Services.AddTransient<IAlbumRepository, AlbumRepository>();
+builder.Services.AddTransient<IPhotoRepository, PhotoRepository>();
+
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// Download images for seeded photos
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<PhotoAlbumContext>();
+    var imageDownloadService = new ImageDownloadService();
+
+    var photos = context.Photos.Where(p => !string.IsNullOrEmpty(p.Url)).ToList();
+    foreach (var photo in photos)
+    {
+        await imageDownloadService.DownloadImageAsync(photo);
+        context.Update(photo);
+    }
+
+    await context.SaveChangesAsync();
+}
+
 app.MapGet("/", () => "Backend Project - Photo Album API");
 
-app.MapGet("/api/albums", async (IPhotoAlbumService service) =>
-{
-    var albums = await service.GetAlbumsAsync();
-    return Results.Ok(albums);
-});
-
-app.MapGet("/api/albums/{id}", async (int id, IPhotoAlbumService service) =>
-{
-    var album = await service.GetAlbumAsync(id);
-    if (album is not null)
-    {
-        return Results.Ok(album);
-    }
-    else
-    {
-        return Results.Json(new { message = "Album not found", albumId = id }, statusCode: 404);
-    }
-});
-
-app.MapPost("/api/albums", async (Album album, IPhotoAlbumService service) =>
-{
-    var newAlbum = await service.AddAlbumAsync(album);
-    return Results.Created($"/api/albums/{newAlbum.Id}", newAlbum);
-});
-
-app.MapPut("/api/albums/{id}", async (int id, Album updatedAlbum, IPhotoAlbumService service) =>
-{
-    var album = await service.GetAlbumAsync(id);
-    if (album is not null)
-    {
-        album.Title = updatedAlbum.Title;
-        album.Description = updatedAlbum.Description;
-        await service.UpdateAlbumAsync(album);
-        return Results.Ok(album);
-    }
-    else
-    {
-        return Results.Json(new { message = "Album not found", albumId = id }, statusCode: 404);
-    }
-});
-
-app.MapDelete("/api/albums/{id}", async (int id, IPhotoAlbumService service) =>
-{
-    await service.DeleteAlbumAsync(id);
-    return Results.NoContent();
-});
-
+// Map the controllers
+app.MapControllers();
 
 app.Run("http://localhost:3000");

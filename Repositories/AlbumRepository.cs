@@ -9,7 +9,7 @@ namespace PhotoAlbumApi.Repositories;
 public interface IAlbumRepository
 {
     Task<IEnumerable<Album>> GetAlbumsAsync();
-    Task<Album?> GetAlbumAsync(int id);
+    Task<Album?> GetAlbumByIdAsync(int id);
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id);
@@ -29,7 +29,7 @@ public class AlbumRepository : IAlbumRepository
         return await _context.Albums.ToListAsync();
     }
 
-    public async Task<Album?> GetAlbumAsync(int id)
+    public async Task<Album?> GetAlbumByIdAsync(int id)
     {
         return await _context.Albums.FindAsync(id);
     }
@@ -43,13 +43,16 @@ public class AlbumRepository : IAlbumRepository
 
     public async Task<Album?> UpdateAlbumAsync(Album album)
     {
-        if (album != null)
+        var existingAlbum = await _context.Albums.FindAsync(album.Id);
+        if (existingAlbum == null)
         {
-            _context.Albums.Update(album);
-            await _context.SaveChangesAsync();
-            return album;
+            return null;
         }
-        return null;
+
+        existingAlbum.Title = album.Title;
+        existingAlbum.Description = album.Description;
+        await _context.SaveChangesAsync();
+        return existingAlbum;
     }
 
     public async Task DeleteAlbumAsync(int id)

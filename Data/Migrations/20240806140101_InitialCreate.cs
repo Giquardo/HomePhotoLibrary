@@ -4,6 +4,8 @@ using MySql.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace Backend_dev.Data.Migrations
 {
     /// <inheritdoc />
@@ -41,7 +43,9 @@ namespace Backend_dev.Data.Migrations
                     DateUploaded = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false),
                     Extension = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false),
-                    FilePath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    FilePath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false),
+                    Url = table.Column<string>(type: "varchar(2083)", maxLength: 2083, nullable: false),
+                    Hash = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -58,7 +62,19 @@ namespace Backend_dev.Data.Migrations
             migrationBuilder.InsertData(
                 table: "Albums",
                 columns: new[] { "Id", "Description", "Title" },
-                values: new object[] { 1, "Album for AI related photos", "AI" });
+                values: new object[,]
+                {
+                    { 1, "Album for AI related photos", "AI" },
+                    { 2, "Album for nature related photos", "Nature" },
+                    { 3, "Album for travel related photos", "Travel" },
+                    { 4, "Album for family related photos", "Family" },
+                    { 5, "Album for food related photos", "Food" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Photos",
+                columns: new[] { "Id", "AlbumId", "DateUploaded", "Description", "Extension", "FilePath", "Hash", "Title", "Url" },
+                values: new object[] { 1, 1, new DateTime(2024, 8, 6, 16, 1, 1, 244, DateTimeKind.Local).AddTicks(1456), "", "", "", "", "AI Art Creation", "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Photos_AlbumId",

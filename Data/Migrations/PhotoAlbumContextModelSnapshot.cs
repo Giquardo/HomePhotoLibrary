@@ -45,6 +45,30 @@ namespace Backend_dev.Data.Migrations
                             Id = 1,
                             Description = "Album for AI related photos",
                             Title = "AI"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Album for nature related photos",
+                            Title = "Nature"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Description = "Album for travel related photos",
+                            Title = "Travel"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Description = "Album for family related photos",
+                            Title = "Family"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Description = "Album for food related photos",
+                            Title = "Food"
                         });
                 });
 
@@ -75,16 +99,40 @@ namespace Backend_dev.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2083)
+                        .HasColumnType("varchar(2083)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AlbumId");
 
                     b.ToTable("Photos");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AlbumId = 1,
+                            DateUploaded = new DateTime(2024, 8, 6, 16, 1, 1, 244, DateTimeKind.Local).AddTicks(1456),
+                            Description = "",
+                            Extension = "",
+                            FilePath = "",
+                            Hash = "",
+                            Title = "AI Art Creation",
+                            Url = "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg"
+                        });
                 });
 
             modelBuilder.Entity("PhotoAlbumApi.Models.Photo", b =>
