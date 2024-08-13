@@ -26,12 +26,12 @@ public class AlbumRepository : IAlbumRepository
 
     public async Task<IEnumerable<Album>> GetAlbumsAsync()
     {
-        return await _context.Albums.ToListAsync();
+        return await _context.Albums.Include(a => a.Photos).ToListAsync();
     }
 
     public async Task<Album?> GetAlbumByIdAsync(int id)
     {
-        return await _context.Albums.FindAsync(id);
+        return await _context.Albums.Include(a => a.Photos).FirstOrDefaultAsync(a => a.Id == id);
     }
 
     public async Task<Album> AddAlbumAsync(Album album)
@@ -51,6 +51,7 @@ public class AlbumRepository : IAlbumRepository
 
         existingAlbum.Title = album.Title;
         existingAlbum.Description = album.Description;
+        
         await _context.SaveChangesAsync();
         return existingAlbum;
     }

@@ -119,31 +119,15 @@ namespace Backend_dev.Data.Migrations
                     b.HasIndex("AlbumId");
 
                     b.ToTable("Photos");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AlbumId = 1,
-                            DateUploaded = new DateTime(2024, 8, 6, 16, 1, 1, 244, DateTimeKind.Local).AddTicks(1456),
-                            Description = "",
-                            Extension = "",
-                            FilePath = "",
-                            Hash = "",
-                            Title = "AI Art Creation",
-                            Url = "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg"
-                        });
                 });
 
             modelBuilder.Entity("PhotoAlbumApi.Models.Photo", b =>
                 {
-                    b.HasOne("PhotoAlbumApi.Models.Album", "Album")
+                    b.HasOne("PhotoAlbumApi.Models.Album", null)
                         .WithMany("Photos")
                         .HasForeignKey("AlbumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Album");
                 });
 
             modelBuilder.Entity("PhotoAlbumApi.Models.Album", b =>

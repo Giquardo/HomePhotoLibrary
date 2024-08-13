@@ -71,11 +71,6 @@ namespace Backend_dev.Data.Migrations
                     { 5, "Album for food related photos", "Food" }
                 });
 
-            migrationBuilder.InsertData(
-                table: "Photos",
-                columns: new[] { "Id", "AlbumId", "DateUploaded", "Description", "Extension", "FilePath", "Hash", "Title", "Url" },
-                values: new object[] { 1, 1, new DateTime(2024, 8, 6, 16, 1, 1, 244, DateTimeKind.Local).AddTicks(1456), "", "", "", "", "AI Art Creation", "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg" });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Photos_AlbumId",
                 table: "Photos",

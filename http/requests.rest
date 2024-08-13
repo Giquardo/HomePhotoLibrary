@@ -4,7 +4,7 @@ GET http://localhost:3000/api/albums HTTP/1.1
 ###
 
 ### Get a specific album by ID
-GET http://localhost:3000/api/albums/1 HTTP/1.1
+GET http://localhost:3000/api/albums/20 HTTP/1.1
 
 ###
 
@@ -13,14 +13,24 @@ POST http://localhost:3000/api/albums HTTP/1.1
 Content-Type: application/json
 
 {
-  "title": "AI Creations",
-  "description": "Wtf"
+  "title": "Alessia Columban",
+  "description": "Gf of the year"
+}
+
+###
+
+### Add a new album
+POST http://localhost:3000/api/albums HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "AI Creations"
 }
 
 ###
 
 ### Update an existing album
-PUT http://localhost:3000/api/albums/3 HTTP/1.1
+PUT http://localhost:3000/api/albums/20 HTTP/1.1
 Content-Type: application/json
 
 {
@@ -31,7 +41,7 @@ Content-Type: application/json
 ###
 
 ### Delete an album by ID
-DELETE http://localhost:3000/api/albums/5 HTTP/1.1
+DELETE http://localhost:3000/api/albums/20 HTTP/1.1
 
 ###
 
@@ -50,7 +60,52 @@ POST http://localhost:3000/api/photos HTTP/1.1
 Content-Type: application/json
 
 {
-  "title": "AI Image",
-  "description": "AI image created with AI tools",
-  "url": "https://www.google.com"
+  "albumId": 22,
+  "title": "Smoking Roses",
+  "description": "Pinterst image",
+  "url": "https://i.pinimg.com/originals/d5/6d/7d/d56d7d9b840774e9a05c11ffab5330e0.jpg"
+}
+
+### Add a new photo
+POST http://localhost:3000/api/photos HTTP/1.1
+Content-Type: application/json
+
+{
+  "albumId": 1,
+  "title": "AI Art Creation",
+  "description": "A photo of AI art creation.",
+  "url": "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg"
+}
+
+### Add a new photo
+POST http://localhost:3000/api/photos HTTP/1.1
+Content-Type: application/json
+
+{
+  "albumId": 2,
+  "title": "Landscape",
+  "description": "A beautiful landscape.",
+  "url": "https://wallpapers.com/images/featured/4k-ultra-hd-landscape-yva5dmhhj6fii9af.jpg"
+}
+
+### Add a new photo
+POST http://localhost:3000/api/photos HTTP/1.1
+Content-Type: application/json
+
+{
+  "albumId": 2,
+  "title": "Nature",
+  "description": "Nature picture 1920x1080",
+  "url": "https://wallpapers.com/images/hd/4k-landscape-montana-mountain-sunset-04gzrw7s9axs8q5w.jpg"
+}
+
+### Add a new photo
+POST http://localhost:3000/api/photos HTTP/1.1
+Content-Type: application/json
+
+{
+  "albumId": 2,
+  "title": "Icy plains",
+  "description": "An icy plains picture",
+  "url": "https://wallpapers.com/images/hd/4k-nature-in-ice-wvdjbvbvxn12plp6.jpg"
 }
