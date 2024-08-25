@@ -8,8 +8,8 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         CreateMap<Album, AlbumDto>().ReverseMap();
+        CreateMap<Album, AlbumSummaryDto>().ReverseMap();
 
-        CreateMap<Album, AlbumDetailDto>().ReverseMap();
     }
 }
 

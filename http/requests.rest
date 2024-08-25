@@ -1,15 +1,25 @@
-### Get all albums
-GET http://localhost:3000/api/albums HTTP/1.1
+### Get all albums (v1)
+GET http://localhost:3000/api/v1.0/albums HTTP/1.1
 
 ###
 
-### Get a specific album by ID
-GET http://localhost:3000/api/albums/20 HTTP/1.1
+### Get all albums (v2)
+GET http://localhost:3000/api/v2.0/albums HTTP/1.1
 
 ###
 
-### Add a new album
-POST http://localhost:3000/api/albums HTTP/1.1
+### Get a specific album by ID (v1)
+GET http://localhost:3000/api/v1.0/albums/3 HTTP/1.1
+
+###
+
+### Get a specific album by ID (v2)
+GET http://localhost:3000/api/v2.0/albums/3 HTTP/1.1
+
+###
+
+### Add a new album (v1)
+POST http://localhost:3000/api/v1.0/albums HTTP/1.1
 Content-Type: application/json
 
 {
@@ -19,8 +29,8 @@ Content-Type: application/json
 
 ###
 
-### Add a new album
-POST http://localhost:3000/api/albums HTTP/1.1
+### Add a new album (v2)
+POST http://localhost:3000/api/v2.0/albums HTTP/1.1
 Content-Type: application/json
 
 {
@@ -29,8 +39,8 @@ Content-Type: application/json
 
 ###
 
-### Update an existing album
-PUT http://localhost:3000/api/albums/20 HTTP/1.1
+### Update an existing album (v1)
+PUT http://localhost:3000/api/v1.0/albums/25 HTTP/1.1
 Content-Type: application/json
 
 {
@@ -40,8 +50,24 @@ Content-Type: application/json
 
 ###
 
-### Delete an album by ID
-DELETE http://localhost:3000/api/albums/20 HTTP/1.1
+### Update an existing album (v2)
+PUT http://localhost:3000/api/v2.0/albums/25 HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "AI Creations",
+  "description": "AI images created with AI tools"
+}
+
+###
+
+### Delete an album by ID (v1)
+DELETE http://localhost:3000/api/v1.0/albums/30 HTTP/1.1
+
+###
+
+### Delete an album by ID (v2)
+DELETE http://localhost:3000/api/v2.0/albums/24 HTTP/1.1
 
 ###
 
@@ -51,7 +77,7 @@ GET http://localhost:3000/api/photos HTTP/1.1
 ###
 
 ### Get a specific photo by ID
-GET http://localhost:3000/api/photos/1 HTTP/1.1
+GET http://localhost:3000/api/photos/6 HTTP/1.1
 
 ###
 
@@ -61,7 +87,7 @@ Content-Type: application/json
 
 {
   "albumId": 22,
-  "title": "Smoking Roses",
+  "titled": "Smoking Roses",
   "description": "Pinterst image",
   "url": "https://i.pinimg.com/originals/d5/6d/7d/d56d7d9b840774e9a05c11ffab5330e0.jpg"
 }
@@ -74,7 +100,7 @@ Content-Type: application/json
   "albumId": 1,
   "title": "AI Art Creation",
   "description": "A photo of AI art creation.",
-  "url": "https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg"
+  "url": "https://images.pexels.com/photos/1097456/pexels-photo-1097456.jpeg?cs=srgb&dl=pexels-sebastiaan9977-1097456.jpg&fm=jpg"
 }
 
 ### Add a new photo
@@ -85,7 +111,7 @@ Content-Type: application/json
   "albumId": 2,
   "title": "Landscape",
   "description": "A beautiful landscape.",
-  "url": "https://wallpapers.com/images/featured/4k-ultra-hd-landscape-yva5dmhhj6fii9af.jpg"
+  "url": "https://images.pexels.com/photos/1421903/pexels-photo-1421903.jpeg?cs=srgb&dl=pexels-eberhardgross-1421903.jpg&fm=jpg"
 }
 
 ### Add a new photo
@@ -96,7 +122,7 @@ Content-Type: application/json
   "albumId": 2,
   "title": "Nature",
   "description": "Nature picture 1920x1080",
-  "url": "https://wallpapers.com/images/hd/4k-landscape-montana-mountain-sunset-04gzrw7s9axs8q5w.jpg"
+  "url": "https://images.pexels.com/photos/640781/pexels-photo-640781.jpeg?cs=srgb&dl=pexels-eberhardgross-640781.jpg&fm=jpg"
 }
 
 ### Add a new photo

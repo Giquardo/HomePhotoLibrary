@@ -60,6 +60,12 @@ public class LoggingService
         _serilogLogger.LogError(exception, message);
     }
 
+    public void LogDebug(string message)
+    {
+        Log("Debug", message);
+        _serilogLogger.LogDebug(message);
+    }
+
     private void Log(string logLevel, string message)
     {
         var logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{logLevel}] - {message}";

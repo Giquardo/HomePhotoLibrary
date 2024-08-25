@@ -1,6 +1,8 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using PhotoAlbumApi.Models;
 using PhotoAlbumApi.Repositories;
+using PhotoAlbumApi.Validators;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -13,7 +15,7 @@ namespace PhotoAlbumApi.Controllers
         private readonly IPhotoRepository _photoRepository;
         private readonly LoggingService _loggingService;
 
-        public PhotoController(IPhotoRepository photoRepository, LoggingService loggingService)
+        public PhotoController(IPhotoRepository photoRepository, LoggingService loggingService, IValidator<Photo> validator)
         {
             _photoRepository = photoRepository;
             _loggingService = loggingService;
