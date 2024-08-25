@@ -32,11 +32,20 @@ namespace PhotoAlbumApi.Controllers
 
         // GET: api/Photos
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Photo>>> GetPhotos()
+        public async Task<ActionResult> GetPhotos()
         {
             _loggingService.LogInformation("Fetching all photos");
-            var photos = await _service.GetPhotosAsync();
-            var photoDtos = _mapper.Map<IEnumerable<PhotoDto>>(photos);
+            var cacheKey = "GetPhotos";
+            if (!_cache.TryGetValue(cacheKey, out IEnumerable<PhotoDto> photoDtos))
+            {
+                var photos = await _service.GetPhotosAsync();
+                photoDtos = _mapper.Map<IEnumerable<PhotoDto>>(photos);
+
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+
+                _cache.Set(cacheKey, photoDtos, cacheEntryOptions);
+            }
             _loggingService.LogInformation("Successfully fetched all photos");
             return Ok(photoDtos);
         }
