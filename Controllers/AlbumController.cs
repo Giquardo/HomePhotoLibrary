@@ -184,8 +184,8 @@ namespace PhotoAlbumApi.Controllers
             // Update the cache
             var cacheKeyV1 = $"GetAlbumV1_{id}";
             var cacheKeyV2 = $"GetAlbumV2_{id}";
-            _cache.Set(cacheKeyV1, _mapper.Map<AlbumSummaryDto>(updatedAlbum), new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(5)));
-            _cache.Set(cacheKeyV2, updatedAlbumDto, new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(5)));
+            _cache.Remove(cacheKeyV1);
+            _cache.Remove(cacheKeyV2);
 
             return Ok(updatedAlbumDto);
         }

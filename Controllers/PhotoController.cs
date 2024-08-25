@@ -50,65 +50,99 @@ namespace PhotoAlbumApi.Controllers
             return Ok(photoDtos);
         }
 
-        // [HttpGet("{id}")]
-        // public async Task<ActionResult<Photo>> GetPhoto(int id)
-        // {
-        //     _loggingService.LogInformation($"Fetching photo with ID: {id}");
-        //     var photo = await _photoRepository.GetPhotoByIdAsync(id);
-        //     if (photo == null)
-        //     {
-        //         _loggingService.LogWarning($"Photo with ID: {id} not found");
-        //         return NotFound();
-        //     }
-        //     _loggingService.LogInformation($"Successfully fetched photo with ID: {id}");
-        //     return Ok(photo);
-        // }
+        [HttpGet("{id}")]
+        public async Task<ActionResult> GetPhoto(int id)
+        {
+            _loggingService.LogInformation($"Fetching photo with ID: {id}");
+            var cacheKey = $"GetPhoto_{id}";
+            if (!_cache.TryGetValue(cacheKey, out PhotoDto photoDto))
+            {
+                var photo = await _service.GetPhotoAsync(id);
+                if (photo == null)
+                {
+                    _loggingService.LogWarning($"Photo with ID: {id} not found");
+                    return NotFound();
+                }
+                photoDto = _mapper.Map<PhotoDto>(photo);
 
-        // [HttpPost]
-        // public async Task<ActionResult<Photo>> AddPhoto(Photo photo)
-        // {
-        //     _loggingService.LogInformation("Adding a new photo");
-        //     try
-        //     {
-        //         var addedPhoto = await _photoRepository.AddPhotoAsync(photo);
-        //         _loggingService.LogInformation($"Successfully added a new photo with ID: {addedPhoto.Id}");
-        //         return CreatedAtAction(nameof(GetPhoto), new { id = addedPhoto.Id }, addedPhoto);
-        //     }
-        //     catch (InvalidOperationException ex)
-        //     {
-        //         _loggingService.LogError(ex, "Error adding photo");
-        //         return Conflict(new { message = ex.Message });
-        //     }
-        // }
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(5));
 
-        // [HttpPut("{id}")]
-        // public async Task<IActionResult> UpdatePhoto(int id, Photo photo)
-        // {
-        //     _loggingService.LogInformation($"Updating photo with ID: {id}");
-        //     if (id != photo.Id)
-        //     {
-        //         _loggingService.LogWarning("Photo ID mismatch");
-        //         return BadRequest();
-        //     }
+                _cache.Set(cacheKey, photoDto, cacheEntryOptions);
+                _loggingService.LogInformation($"Successfully fetched photo with ID: {id}");
+            }
+            return Ok(photoDto);
+        }
 
-        //     var updatedPhoto = await _photoRepository.UpdatePhotoAsync(photo);
-        //     if (updatedPhoto == null)
-        //     {
-        //         _loggingService.LogWarning($"Photo with ID: {id} not found");
-        //         return NotFound();
-        //     }
+        [HttpPost]
+        public async Task<ActionResult> AddPhoto(PhotoDto photoDto)
+        {
+            _loggingService.LogInformation("Adding a new photo");
+            try
+            {
+                var photo = _mapper.Map<Photo>(photoDto);
+                var addedPhoto = await _service.AddPhotoAsync(photo);
+                _loggingService.LogInformation($"Successfully added a new photo with ID: {addedPhoto.Id}");
+                return CreatedAtAction(nameof(GetPhoto), new { id = addedPhoto.Id }, addedPhoto);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _loggingService.LogError(ex, "Error adding photo");
+                return Conflict(new { message = ex.Message });
+            }
+        }
 
-        //     _loggingService.LogInformation($"Successfully updated photo with ID: {id}");
-        //     return NoContent();
-        // }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePhoto(int id, PhotoDto photoDto)
+        {
+            _loggingService.LogInformation($"Updating photo with ID: {id}");
 
-        // [HttpDelete("{id}")]
-        // public async Task<IActionResult> DeletePhoto(int id)
-        // {
-        //     _loggingService.LogInformation($"Attempting to delete photo with ID: {id}");
-        //     await _photoRepository.DeletePhotoAsync(id);
-        //     _loggingService.LogInformation($"Successfully deleted photo with ID: {id}");
-        //     return NoContent();
-        // }
+            if (photoDto == null)
+            {
+                _loggingService.LogWarning("Photo data is missing");
+                return BadRequest(new { message = "Photo data is missing" });
+            }
+
+            // Retrieve the existing photo from the service/repository
+            var existingPhoto = await _service.GetPhotoAsync(id);
+            if (existingPhoto == null)
+            {
+                _loggingService.LogWarning($"Photo with ID: {id} not found");
+                return NotFound(new { message = "Photo not found", photoId = id });
+            }
+
+            // Assign updated properties to the existing photo object
+            existingPhoto.AlbumId = photoDto.AlbumId;
+            existingPhoto.Title = photoDto.Title;
+            existingPhoto.Description = photoDto.Description;
+            existingPhoto.Url = photoDto.Url;
+
+            // Pass the updated photo object to the repository for processing
+            var updatedPhoto = await _service.UpdatePhotoAsync(existingPhoto);
+
+            // Check if the update was successful
+            if (updatedPhoto == null)
+            {
+                _loggingService.LogError($"Failed to update photo with ID: {id}");
+                return StatusCode(500, new { message = "An error occurred while updating the photo" });
+            }
+
+            // Invalidate the cache if necessary
+            _cache.Remove($"GetPhoto_{id}");
+            _loggingService.LogInformation($"Cache invalidated for photo ID: {id}");
+
+            // Return the updated photo data
+            return Ok(updatedPhoto);
+        }
+
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePhoto(int id)
+        {
+            _loggingService.LogInformation($"Attempting to delete photo with ID: {id}");
+            await _service.DeletePhotoAsync(id);
+            _loggingService.LogInformation($"Successfully deleted photo with ID: {id}");
+            return NoContent();
+        }
     }
 }
