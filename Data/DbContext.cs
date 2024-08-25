@@ -9,6 +9,7 @@ public class PhotoAlbumContext : DbContext
 
     public DbSet<Album> Albums { get; set; }
     public DbSet<Photo> Photos { get; set; }
+    public DbSet<User> Users { get; set; }
 
     public PhotoAlbumContext(DbContextOptions<PhotoAlbumContext> options) : base(options)
     { }
@@ -51,6 +52,17 @@ public class PhotoAlbumContext : DbContext
                 Id = 5,
                 Title = "Food",
                 Description = "Album for food related photos"
+            }
+
+            );
+        modelBuilder.Entity<User>().HasData(
+            new User
+            {
+                Id = 1,
+                Username = "giquardo",
+                Email = "giquardo@gmail.com",
+                Password = "123",
+                IsAdmin = true
             }
         );
     }

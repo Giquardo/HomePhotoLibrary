@@ -1,17 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using PhotoAlbumApi.Data;
-using PhotoAlbumApi.Models;
 using PhotoAlbumApi.Repositories;
 using PhotoAlbumApi.Services;
 using PhotoAlbumApi.Profiles;
-using System.Text.Json.Serialization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using AutoMapper;
 using Serilog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,9 +34,12 @@ builder.Services.AddDbContext<PhotoAlbumContext>(options => options.UseMySQL(con
 // Register repositories
 builder.Services.AddTransient<IAlbumRepository, AlbumRepository>();
 builder.Services.AddTransient<IPhotoRepository, PhotoRepository>();
+builder.Services.AddTransient<IUserRepository, UserRepository>();
 
 // Register services
 builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
+builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
+builder.Services.AddTransient<IUserService, UserService>();
 
 // Register FluentValidation
 builder.Services.AddControllers();
@@ -69,11 +72,67 @@ builder.Services.AddApiVersioning(config =>
     config.ApiVersionReader = new UrlSegmentApiVersionReader();
 });
 
+// Configure JWT Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+// Configure Authorization Policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
+
 // Configure the Swagger generator
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Photo Album API", Version = "v1.0" });
+
+    // Add JWT Authentication to Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = @"JWT Authorization header using the Bearer scheme." + "\r\n\r\n" +
+                      "Enter 'Bearer' [space] and then your token in the text input below." + "\r\n\r\n" +
+                      "Example: 'Bearer 12345abcdef'" + "\r\n\r\n",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
 
     // Add this to resolve conflicting actions
     c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
@@ -81,11 +140,13 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.UseAuthentication(); // Enable authentication
+app.UseAuthorization(); // Enable authorization
+
 app.MapGet("/", () => "Backend Project - Photo Album API");
 
 // Map the controllers
 app.MapControllers();
-
 
 // Enable middleware to serve generated Swagger as a JSON endpoint
 app.UseSwagger();
