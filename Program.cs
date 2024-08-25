@@ -5,13 +5,13 @@ using PhotoAlbumApi.Repositories;
 using PhotoAlbumApi.Services;
 using PhotoAlbumApi.Profiles;
 using System.Text.Json.Serialization;
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using AutoMapper;
 using Serilog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.Extensions.Caching.Memory;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,8 +39,10 @@ builder.Services.AddTransient<IPhotoRepository, PhotoRepository>();
 builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
 
 // Register FluentValidation
-builder.Services.AddControllers()
-    .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());
+builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation()
+                .AddFluentValidationClientsideAdapters();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Configure AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
@@ -83,6 +85,7 @@ app.MapGet("/", () => "Backend Project - Photo Album API");
 
 // Map the controllers
 app.MapControllers();
+
 
 // Enable middleware to serve generated Swagger as a JSON endpoint
 app.UseSwagger();

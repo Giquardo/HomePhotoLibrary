@@ -1,9 +1,10 @@
 using FluentValidation;
 using PhotoAlbumApi.Models;
+using PhotoAlbumApi.DTOs;
 
 namespace PhotoAlbumApi.Validators;
 
-public class PhotoValidator : AbstractValidator<Photo>
+public class PhotoValidator : AbstractValidator<PhotoDto>
 {
     public PhotoValidator()
     {

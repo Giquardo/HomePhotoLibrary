@@ -47,6 +47,7 @@ public class PhotoRepository : IPhotoRepository
 
         photo.Hash = CalculateHash(photo.FilePath);
         photo.Extension = Path.GetExtension(photo.FilePath);
+        photo.DateUploaded = DateTime.Now;
 
         // Check if a photo with the same hash already exists
         var existingPhoto = await _context.Photos.FirstOrDefaultAsync(p => p.Hash == photo.Hash);

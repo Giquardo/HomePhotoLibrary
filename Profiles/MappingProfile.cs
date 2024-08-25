@@ -9,6 +9,7 @@ public class MappingProfile : Profile
     {
         CreateMap<Album, AlbumDto>().ReverseMap();
         CreateMap<Album, AlbumSummaryDto>().ReverseMap();
+        CreateMap<Photo, PhotoDto>().ReverseMap();
 
     }
 }

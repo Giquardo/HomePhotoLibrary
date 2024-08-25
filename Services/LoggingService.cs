@@ -25,7 +25,7 @@ public class LoggingService
     private void EnsureLogFileExists()
     {
         var directory = Path.GetDirectoryName(_filePath);
-        if (!Directory.Exists(directory))
+        if (directory != null && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
