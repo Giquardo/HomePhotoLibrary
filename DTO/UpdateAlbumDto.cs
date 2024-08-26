@@ -1,8 +1,7 @@
 namespace PhotoAlbumApi.DTOs;
 
-public class AlbumDto
+public class UpdateAlbumDto
 {
     public required string Title { get; set; }
     public string Description { get; set; } = string.Empty;
-    public int UserId { get; set; }
 }

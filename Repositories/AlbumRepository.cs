@@ -13,6 +13,7 @@ public interface IAlbumRepository
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id);
+    Task<Album> UndoDeleteAlbumAsync(int id);
 }
 
 public class AlbumRepository : IAlbumRepository
@@ -26,12 +27,17 @@ public class AlbumRepository : IAlbumRepository
 
     public async Task<IEnumerable<Album>> GetAlbumsAsync()
     {
-        return await _context.Albums.Include(a => a.Photos).ToListAsync();
+        return await _context.Albums
+            .Include(a => a.Photos)
+            .Where(a => !a.IsDeleted) // Filter out deleted albums
+            .ToListAsync();
     }
 
     public async Task<Album?> GetAlbumByIdAsync(int id)
     {
-        return await _context.Albums.Include(a => a.Photos).FirstOrDefaultAsync(a => a.Id == id);
+        return await _context.Albums
+            .Include(a => a.Photos)
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted); // Filter out deleted albums
     }
 
     public async Task<Album> AddAlbumAsync(Album album)
@@ -44,14 +50,14 @@ public class AlbumRepository : IAlbumRepository
     public async Task<Album?> UpdateAlbumAsync(Album album)
     {
         var existingAlbum = await _context.Albums.FindAsync(album.Id);
-        if (existingAlbum == null)
+        if (existingAlbum == null || existingAlbum.IsDeleted) // Check if album is deleted
         {
             return null;
         }
 
         existingAlbum.Title = album.Title;
         existingAlbum.Description = album.Description;
-        
+
         await _context.SaveChangesAsync();
         return existingAlbum;
     }
@@ -59,10 +65,22 @@ public class AlbumRepository : IAlbumRepository
     public async Task DeleteAlbumAsync(int id)
     {
         var album = await _context.Albums.FindAsync(id);
-        if (album != null)
+        if (album != null && !album.IsDeleted) // Check if album is already deleted
         {
-            _context.Albums.Remove(album);
+            album.IsDeleted = true; // Mark as deleted
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<Album> UndoDeleteAlbumAsync(int id)
+    {
+        var album = await _context.Albums.FindAsync(id);
+        if (album != null && album.IsDeleted) // Check if album is deleted
+        {
+            album.IsDeleted = false; // Mark as not deleted
+            await _context.SaveChangesAsync();
+        }
+        return album;
+    }
+
 }

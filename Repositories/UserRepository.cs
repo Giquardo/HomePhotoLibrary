@@ -2,7 +2,6 @@ using PhotoAlbumApi.Models;
 using Microsoft.EntityFrameworkCore;
 using PhotoAlbumApi.Data;
 
-
 namespace PhotoAlbumApi.Repositories;
 
 public interface IUserRepository
@@ -26,17 +25,23 @@ public class UserRepository : IUserRepository
 
     public async Task<IEnumerable<User>> GetUsersAsync()
     {
-        return await _context.Users.ToListAsync();
+        return await _context.Users
+            .Include(u => u.Albums) // Include related albums
+            .ToListAsync();
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return await _context.Users
+            .Include(u => u.Albums) // Include related albums
+            .FirstOrDefaultAsync(u => u.Username == username);
     }
 
     public async Task<User?> GetUserByIdAsync(int id)
     {
-        return await _context.Users.FindAsync(id);
+        return await _context.Users
+            .Include(u => u.Albums) // Include related albums
+            .FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<User> CreateUserAsync(User user)

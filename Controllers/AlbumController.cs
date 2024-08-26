@@ -59,10 +59,10 @@ namespace PhotoAlbumApi.Controllers
             _loggingService.LogInformation("Version: 2.0 - Fetching all albums");
 
             var cacheKey = "GetAlbumsV2";
-            if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumDto> albumDetailDtos))
+            if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumDetailDtos))
             {
                 var albums = await _service.GetAlbumsAsync();
-                albumDetailDtos = _mapper.Map<IEnumerable<AlbumDto>>(albums);
+                albumDetailDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
 
                 var cacheEntryOptions = new MemoryCacheEntryOptions()
                     .SetSlidingExpiration(TimeSpan.FromMinutes(5));
@@ -114,12 +114,12 @@ namespace PhotoAlbumApi.Controllers
             _loggingService.LogInformation($"Version: 2.0 - Fetching album with ID: {id}");
 
             var cacheKey = $"GetAlbumV2_{id}";
-            if (!_cache.TryGetValue(cacheKey, out AlbumDto albumDto))
+            if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumDto))
             {
                 var album = await _service.GetAlbumAsync(id);
                 if (album is not null)
                 {
-                    albumDto = _mapper.Map<AlbumDto>(album);
+                    albumDto = _mapper.Map<AlbumSummaryDto>(album);
 
                     var cacheEntryOptions = new MemoryCacheEntryOptions()
                         .SetSlidingExpiration(TimeSpan.FromMinutes(5));
@@ -148,13 +148,13 @@ namespace PhotoAlbumApi.Controllers
             var newAlbum = await _service.AddAlbumAsync(album);
             var newAlbumDto = _mapper.Map<AlbumDto>(newAlbum);
 
-            _loggingService.LogInformation($"Successfully added a new album with ID: {newAlbumDto.Id}");
+            _loggingService.LogInformation($"Successfully added a new album with ID: {newAlbum.Id}");
 
-            return CreatedAtAction(nameof(GetAlbumV2), new { id = newAlbumDto.Id }, newAlbumDto);
+            return CreatedAtAction(nameof(GetAlbumV2), new { id = newAlbum.Id }, newAlbumDto);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAlbum(int id, AlbumDto albumDto)
+        public async Task<IActionResult> UpdateAlbum(int id, UpdateAlbumDto albumDto)
         {
             _loggingService.LogInformation($"Updating album with ID: {id}");
 
@@ -171,15 +171,21 @@ namespace PhotoAlbumApi.Controllers
                 return NotFound(new { message = "Album not found", albumId = id });
             }
 
-            // Update the existing album with the new values
+            // Update the existing album with the new values, excluding UserId
             existingAlbum.Title = albumDto.Title;
             existingAlbum.Description = albumDto.Description;
 
             var updatedAlbum = await _service.UpdateAlbumAsync(existingAlbum);
 
-            var updatedAlbumDto = _mapper.Map<AlbumDto>(updatedAlbum);
+            if (updatedAlbum == null)
+            {
+                _loggingService.LogError("Failed to update the album, updatedAlbum is null");
+                return StatusCode(500, new { message = "Failed to update the album" });
+            }
 
-            _loggingService.LogInformation($"Successfully updated album with ID: {id}");
+            var AlbumSummaryDto = _mapper.Map<AlbumSummaryDto>(updatedAlbum);
+
+            _loggingService.LogInformation($"Successfully updated album with ID: {updatedAlbum.Id}");
 
             // Update the cache
             var cacheKeyV1 = $"GetAlbumV1_{id}";
@@ -187,7 +193,7 @@ namespace PhotoAlbumApi.Controllers
             _cache.Remove(cacheKeyV1);
             _cache.Remove(cacheKeyV2);
 
-            return Ok(updatedAlbumDto);
+            return Ok(AlbumSummaryDto);
         }
 
         [HttpDelete("{id}")]
@@ -198,8 +204,9 @@ namespace PhotoAlbumApi.Controllers
             var album = await _service.GetAlbumAsync(id);
             if (album is not null)
             {
-                await _service.DeleteAlbumAsync(id);
-                _loggingService.LogInformation($"Successfully deleted album with ID: {id}");
+                await _service.DeleteAlbumAsync(id); // Use the delete method from the service
+
+                _loggingService.LogInformation($"Successfully soft deleted album with ID: {id}");
 
                 // Remove from cache
                 var cacheKeyV1 = $"GetAlbumV1_{id}";
@@ -213,6 +220,32 @@ namespace PhotoAlbumApi.Controllers
             {
                 _loggingService.LogWarning($"Album with ID: {id} not found");
                 return NotFound(new { message = "Album not found", albumId = id });
+            }
+        }
+
+        [HttpPost("{id}/undo-delete")]
+        public async Task<IActionResult> UndoDeleteAlbum(int id)
+        {
+            _loggingService.LogInformation($"Attempting to undo delete for album with ID: {id}");
+
+            var album = await _service.UndoDeleteAlbumAsync(id);
+            if (album != null)
+            {
+                _loggingService.LogInformation($"Successfully restored album with ID: {id}");
+
+                // Update the cache
+                var cacheKeyV1 = $"GetAlbumV1_{id}";
+                var cacheKeyV2 = $"GetAlbumV2_{id}";
+                _cache.Remove(cacheKeyV1);
+                _cache.Remove(cacheKeyV2);
+
+                var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
+                return Ok(albumSummaryDto);
+            }
+            else
+            {
+                _loggingService.LogWarning($"Album with ID: {id} not found or not deleted");
+                return NotFound(new { message = "Album not found or not deleted", albumId = id });
             }
         }
     }

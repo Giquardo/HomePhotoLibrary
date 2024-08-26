@@ -12,6 +12,7 @@ public interface IPhotoAlbumService
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id);
+    Task<Album> UndoDeleteAlbumAsync(int id);
     Task<IEnumerable<Photo>> GetPhotosAsync();
     Task<Photo?> GetPhotoAsync(int id);
     Task<Photo> AddPhotoAsync(Photo photo);
@@ -79,6 +80,11 @@ public class PhotoAlbumService : IPhotoAlbumService
     public async Task DeletePhotoAsync(int id)
     {
         await _photoRepository.DeletePhotoAsync(id);
+    }
+
+    public async Task<Album> UndoDeleteAlbumAsync(int id)
+    {
+        return await _albumRepository.UndoDeleteAlbumAsync(id);
     }
 
 
