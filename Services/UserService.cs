@@ -8,7 +8,7 @@ public interface IUserService
     Task<IEnumerable<User>> GetUsersAsync();
     Task<User?> GetUserByIdAsync(int id);
     Task<User> CreateUserAsync(User user);
-    Task<User> UpdateUserAsync(User user);
+    Task<User> UpdateUserAsync(int id, User user);
     Task DeleteUserAsync(int id);
 }
 
@@ -50,9 +50,9 @@ public class UserService : IUserService
         return await _userRepository.CreateUserAsync(user);
     }
 
-    public async Task<User> UpdateUserAsync(User user)
+    public async Task<User> UpdateUserAsync(int id, User user)
     {
-        return await _userRepository.UpdateUserAsync(user);
+        return await _userRepository.UpdateUserAsync(id, user);
     }
 
     public async Task DeleteUserAsync(int id)

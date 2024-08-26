@@ -63,5 +63,37 @@ namespace PhotoAlbumApi.Controllers
             _loggingService.LogInformation($"Successfully fetched user with ID: {id}");
             return Ok(user);
         }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateUser([FromBody] User user)
+        {
+            _loggingService.LogInformation($"Creating user: {user.Username}");
+            var createdUser = await _service.CreateUserAsync(user);
+            return CreatedAtAction(nameof(GetUser), new { id = createdUser.Id }, createdUser);
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
+        {
+            _loggingService.LogInformation($"Updating user with ID: {id}");
+            var updatedUser = await _service.UpdateUserAsync(id, user);
+            if (updatedUser == null)
+            {
+                _loggingService.LogWarning($"User with ID: {id} not found");
+                return NotFound();
+            }
+            return Ok(updatedUser);
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            _loggingService.LogInformation($"Deleting user with ID: {id}");
+            await _service.DeleteUserAsync(id);
+            return NoContent();
+        }
     }
 }
