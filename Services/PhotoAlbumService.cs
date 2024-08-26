@@ -7,12 +7,12 @@ using PhotoAlbumApi.Repositories;
 namespace PhotoAlbumApi.Services;
 public interface IPhotoAlbumService
 {
-    Task<IEnumerable<Album>> GetAlbumsAsync();
-    Task<Album?> GetAlbumAsync(int id);
+    Task<IEnumerable<Album>> GetAlbumsAsync(int userId);
+    Task<Album?> GetAlbumAsync(int id, int userId);
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
-    Task DeleteAlbumAsync(int id);
-    Task<Album> UndoDeleteAlbumAsync(int id);
+    Task DeleteAlbumAsync(int id, int userId);
+    Task<Album> UndoDeleteAlbumAsync(int id, int userId);
     Task<IEnumerable<Photo>> GetPhotosAsync();
     Task<Photo?> GetPhotoAsync(int id);
     Task<Photo> AddPhotoAsync(Photo photo);
@@ -32,16 +32,15 @@ public class PhotoAlbumService : IPhotoAlbumService
         _photoRepository = photoRepository;
     }
 
-    public async Task<IEnumerable<Album>> GetAlbumsAsync()
+    public async Task<IEnumerable<Album>> GetAlbumsAsync(int userId)
     {
-        return await _albumRepository.GetAlbumsAsync();
+        return await _albumRepository.GetAlbumsAsync(userId);
     }
 
-    public async Task<Album?> GetAlbumAsync(int id)
+    public async Task<Album?> GetAlbumAsync(int id, int userId)
     {
-        return await _albumRepository.GetAlbumByIdAsync(id);
+        return await _albumRepository.GetAlbumByIdAsync(id, userId);
     }
-
     public async Task<Album> AddAlbumAsync(Album album)
     {
         return await _albumRepository.AddAlbumAsync(album);
@@ -52,9 +51,14 @@ public class PhotoAlbumService : IPhotoAlbumService
         return await _albumRepository.UpdateAlbumAsync(album);
     }
 
-    public async Task DeleteAlbumAsync(int id)
+    public async Task DeleteAlbumAsync(int id, int userId)
     {
-        await _albumRepository.DeleteAlbumAsync(id);
+        await _albumRepository.DeleteAlbumAsync(id, userId);
+    }
+
+    public async Task<Album> UndoDeleteAlbumAsync(int id, int userId)
+    {
+        return await _albumRepository.UndoDeleteAlbumAsync(id, userId);
     }
 
     public async Task<IEnumerable<Photo>> GetPhotosAsync()
@@ -81,12 +85,4 @@ public class PhotoAlbumService : IPhotoAlbumService
     {
         await _photoRepository.DeletePhotoAsync(id);
     }
-
-    public async Task<Album> UndoDeleteAlbumAsync(int id)
-    {
-        return await _albumRepository.UndoDeleteAlbumAsync(id);
-    }
-
-
-
 }

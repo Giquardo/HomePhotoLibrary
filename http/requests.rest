@@ -24,8 +24,7 @@ Content-Type: application/json
 
 {
   "title": "Alessia Columban",
-  "description": "Gf of the year",
-  "userId": 1
+  "description": "Gf of the year"
 }
 
 ###

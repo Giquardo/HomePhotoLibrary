@@ -8,12 +8,12 @@ namespace PhotoAlbumApi.Repositories;
 
 public interface IAlbumRepository
 {
-    Task<IEnumerable<Album>> GetAlbumsAsync();
-    Task<Album?> GetAlbumByIdAsync(int id);
+    Task<IEnumerable<Album>> GetAlbumsAsync(int userId);
+    Task<Album?> GetAlbumByIdAsync(int id, int userId);
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
-    Task DeleteAlbumAsync(int id);
-    Task<Album> UndoDeleteAlbumAsync(int id);
+    Task DeleteAlbumAsync(int id, int userId);
+    Task<Album> UndoDeleteAlbumAsync(int id, int userId);
 }
 
 public class AlbumRepository : IAlbumRepository
@@ -25,19 +25,19 @@ public class AlbumRepository : IAlbumRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Album>> GetAlbumsAsync()
+    public async Task<IEnumerable<Album>> GetAlbumsAsync(int userId)
     {
         return await _context.Albums
             .Include(a => a.Photos)
-            .Where(a => !a.IsDeleted) // Filter out deleted albums
+            .Where(a => a.UserId == userId && !a.IsDeleted)
             .ToListAsync();
     }
 
-    public async Task<Album?> GetAlbumByIdAsync(int id)
+    public async Task<Album?> GetAlbumByIdAsync(int id, int userId)
     {
         return await _context.Albums
             .Include(a => a.Photos)
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted); // Filter out deleted albums
+            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId && !a.IsDeleted); // Filter out deleted albums
     }
 
     public async Task<Album> AddAlbumAsync(Album album)
@@ -62,22 +62,22 @@ public class AlbumRepository : IAlbumRepository
         return existingAlbum;
     }
 
-    public async Task DeleteAlbumAsync(int id)
+    public async Task DeleteAlbumAsync(int id, int userId)
     {
-        var album = await _context.Albums.FindAsync(id);
-        if (album != null && !album.IsDeleted) // Check if album is already deleted
+        var album = await _context.Albums.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
+        if (album != null && !album.IsDeleted)
         {
-            album.IsDeleted = true; // Mark as deleted
+            album.IsDeleted = true;
             await _context.SaveChangesAsync();
         }
     }
 
-    public async Task<Album> UndoDeleteAlbumAsync(int id)
+    public async Task<Album> UndoDeleteAlbumAsync(int id, int userId)
     {
-        var album = await _context.Albums.FindAsync(id);
-        if (album != null && album.IsDeleted) // Check if album is deleted
+        var album = await _context.Albums.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
+        if (album != null && album.IsDeleted)
         {
-            album.IsDeleted = false; // Mark as not deleted
+            album.IsDeleted = false;
             await _context.SaveChangesAsync();
         }
         return album;

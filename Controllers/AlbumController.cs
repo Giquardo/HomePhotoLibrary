@@ -7,13 +7,15 @@ using System.Threading.Tasks;
 using PhotoAlbumApi.DTOs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
-
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 namespace PhotoAlbumApi.Controllers
 {
     [ApiController]
     [Route("api/v{version:apiVersion}/albums")]
     [ApiVersion("1.0")]
     [ApiVersion("2.0")]
+    [Authorize]
     public class AlbumsController : ControllerBase
     {
         private readonly IPhotoAlbumService _service;
@@ -29,223 +31,319 @@ namespace PhotoAlbumApi.Controllers
             _cache = cache;
         }
 
+        private int GetUserId()
+        {
+            var userIdString = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                _loggingService.LogError("User ID claim is missing.");
+                throw new UnauthorizedAccessException("Invalid user ID. User is not signed in or using an invalid ID.");
+            }
+
+            if (int.TryParse(userIdString, out int userId))
+            {
+                return userId;
+            }
+
+            _loggingService.LogError($"Failed to parse user ID: {userIdString}");
+            throw new UnauthorizedAccessException("Invalid user ID. User is not signed in or using an invalid ID.");
+        }
+
         [HttpGet]
         [MapToApiVersion("1.0")]
         public async Task<IActionResult> GetAlbumsV1()
         {
-            _loggingService.LogInformation("Version: 1.0 - Fetching all albums");
-
-            var cacheKey = "GetAlbumsV1";
-            if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumSummaryDtos))
+            try
             {
-                var albums = await _service.GetAlbumsAsync();
-                albumSummaryDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Version: 1.0 - Fetching all albums for user {userId}");
 
-                var cacheEntryOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+                var cacheKey = $"GetAlbumsV1_{userId}";
+                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumSummaryDtos))
+                {
+                    var albums = await _service.GetAlbumsAsync(userId);
+                    albumSummaryDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
 
-                _cache.Set(cacheKey, albumSummaryDtos, cacheEntryOptions);
+                    var cacheEntryOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+
+                    _cache.Set(cacheKey, albumSummaryDtos, cacheEntryOptions);
+                }
+
+                _loggingService.LogInformation($"Version: 1.0 - Successfully fetched all albums for user {userId}");
+
+                return StatusCode(StatusCodes.Status200OK, albumSummaryDtos);
             }
-
-            _loggingService.LogInformation("Version: 1.0 - Successfully fetched all albums");
-
-            return Ok(albumSummaryDtos);
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
         }
 
         [HttpGet]
         [MapToApiVersion("2.0")]
         public async Task<IActionResult> GetAlbumsV2()
         {
-            _loggingService.LogInformation("Version: 2.0 - Fetching all albums");
-
-            var cacheKey = "GetAlbumsV2";
-            if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumDetailDtos))
+            try
             {
-                var albums = await _service.GetAlbumsAsync();
-                albumDetailDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Version: 2.0 - Fetching all albums for user {userId}");
 
-                var cacheEntryOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+                var cacheKey = $"GetAlbumsV2_{userId}";
+                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumDetailDtos))
+                {
+                    var albums = await _service.GetAlbumsAsync(userId);
+                    albumDetailDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
 
-                _cache.Set(cacheKey, albumDetailDtos, cacheEntryOptions);
+                    var cacheEntryOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+
+                    _cache.Set(cacheKey, albumDetailDtos, cacheEntryOptions);
+                }
+
+                _loggingService.LogInformation($"Version: 2.0 - Successfully fetched all albums for user {userId}");
+
+                return StatusCode(StatusCodes.Status200OK, albumDetailDtos);
             }
-
-            _loggingService.LogInformation("Version: 2.0 - Successfully fetched all albums");
-
-            return Ok(albumDetailDtos);
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
         [MapToApiVersion("1.0")]
         public async Task<IActionResult> GetAlbumV1(int id)
         {
-            _loggingService.LogInformation($"Version: 1.0 - Fetching album with ID: {id}");
-
-            var cacheKey = $"GetAlbumV1_{id}";
-            if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumSummaryDto))
+            try
             {
-                var album = await _service.GetAlbumAsync(id);
-                if (album is not null)
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Version: 1.0 - Fetching album with ID: {id} for user {userId}");
+
+                var cacheKey = $"GetAlbumV1_{userId}_{id}";
+                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumSummaryDto))
                 {
-                    albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
+                    var album = await _service.GetAlbumAsync(id, userId);
+                    if (album is not null)
+                    {
+                        albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
 
-                    var cacheEntryOptions = new MemoryCacheEntryOptions()
-                        .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+                        var cacheEntryOptions = new MemoryCacheEntryOptions()
+                            .SetSlidingExpiration(TimeSpan.FromMinutes(5));
 
-                    _cache.Set(cacheKey, albumSummaryDto, cacheEntryOptions);
+                        _cache.Set(cacheKey, albumSummaryDto, cacheEntryOptions);
 
-                    _loggingService.LogInformation($"Version: 1.0 - Successfully fetched album with ID: {id}");
-                    return Ok(albumSummaryDto);
+                        _loggingService.LogInformation($"Version: 1.0 - Successfully fetched album with ID: {id} for user {userId}");
+                        return StatusCode(StatusCodes.Status200OK, albumSummaryDtos);
+                    }
+                    else
+                    {
+                        _loggingService.LogWarning($"Version: 1.0 - Album with ID: {id} not found for user {userId}");
+                        return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                    }
                 }
-                else
-                {
-                    _loggingService.LogWarning($"Version: 1.0 - Album with ID: {id} not found");
-                    return NotFound(new { message = "Album not found", albumId = id });
-                }
+
+                return StatusCode(StatusCodes.Status200OK, albumSummaryDtos);
             }
-
-            return Ok(albumSummaryDto);
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
         [MapToApiVersion("2.0")]
         public async Task<IActionResult> GetAlbumV2(int id)
         {
-            _loggingService.LogInformation($"Version: 2.0 - Fetching album with ID: {id}");
-
-            var cacheKey = $"GetAlbumV2_{id}";
-            if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumDto))
+            try
             {
-                var album = await _service.GetAlbumAsync(id);
-                if (album is not null)
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Version: 2.0 - Fetching album with ID: {id} for user {userId}");
+
+                var cacheKey = $"GetAlbumV2_{userId}_{id}";
+                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumDto))
                 {
-                    albumDto = _mapper.Map<AlbumSummaryDto>(album);
+                    var album = await _service.GetAlbumAsync(id, userId);
+                    if (album is not null)
+                    {
+                        albumDto = _mapper.Map<AlbumSummaryDto>(album);
 
-                    var cacheEntryOptions = new MemoryCacheEntryOptions()
-                        .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+                        var cacheEntryOptions = new MemoryCacheEntryOptions()
+                            .SetSlidingExpiration(TimeSpan.FromMinutes(5));
 
-                    _cache.Set(cacheKey, albumDto, cacheEntryOptions);
+                        _cache.Set(cacheKey, albumDto, cacheEntryOptions);
 
-                    _loggingService.LogInformation($"Version: 2.0 - Successfully fetched album with ID: {id}");
-                    return Ok(albumDto);
+                        _loggingService.LogInformation($"Version: 2.0 - Successfully fetched album with ID: {id} for user {userId}");
+                        return StatusCode(StatusCodes.Status200OK, albumDto);
+                    }
+                    else
+                    {
+                        _loggingService.LogWarning($"Version: 2.0 - Album with ID: {id} not found for user {userId}");
+                        return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                    }
                 }
-                else
-                {
-                    _loggingService.LogWarning($"Version: 2.0 - Album with ID: {id} not found");
-                    return NotFound(new { message = "Album not found", albumId = id });
-                }
+
+                return StatusCode(StatusCodes.Status200OK, albumDto);
             }
-
-            return Ok(albumDto);
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
         }
 
         [HttpPost]
         public async Task<IActionResult> AddAlbum(AlbumDto albumDto)
         {
-            _loggingService.LogInformation("Adding a new album");
+            try
+            {
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Adding a new album for user {userId}");
 
-            var album = _mapper.Map<Album>(albumDto);
-            var newAlbum = await _service.AddAlbumAsync(album);
-            var newAlbumDto = _mapper.Map<AlbumDto>(newAlbum);
+                var album = _mapper.Map<Album>(albumDto);
+                album.UserId = userId;
 
-            _loggingService.LogInformation($"Successfully added a new album with ID: {newAlbum.Id}");
+                var newAlbum = await _service.AddAlbumAsync(album);
+                var newAlbumSummaryDto = _mapper.Map<AlbumSummaryDto>(newAlbum);
 
-            return CreatedAtAction(nameof(GetAlbumV2), new { id = newAlbum.Id }, newAlbumDto);
+                _loggingService.LogInformation($"Successfully added a new album with ID: {newAlbum.Id} for user {userId}");
+
+                // Invalidate the cache for GetAlbumsV1 and GetAlbumsV2
+                var cacheKeyV1 = $"GetAlbumsV1_{userId}";
+                var cacheKeyV2 = $"GetAlbumsV2_{userId}";
+                _cache.Remove(cacheKeyV1);
+                _cache.Remove(cacheKeyV2);
+
+                return StatusCode(StatusCodes.Status201Created, newAlbumSummaryDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAlbum(int id, UpdateAlbumDto albumDto)
+        public async Task<IActionResult> UpdateAlbum(int id, AlbumDto albumDto)
         {
-            _loggingService.LogInformation($"Updating album with ID: {id}");
-
-            if (albumDto == null)
+            try
             {
-                _loggingService.LogWarning("Invalid album data provided");
-                return BadRequest(new { message = "Invalid album data" });
-            }
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Updating album with ID: {id} for user {userId}");
 
-            var existingAlbum = await _service.GetAlbumAsync(id);
-            if (existingAlbum == null)
+                if (albumDto == null)
+                {
+                    _loggingService.LogWarning("Invalid album data provided");
+                    return StatusCode(StatusCodes.Status400BadRequest, new { message = "Invalid album data" });
+                }
+
+                var existingAlbum = await _service.GetAlbumAsync(id, userId);
+                if (existingAlbum == null)
+                {
+                    _loggingService.LogWarning($"Album with ID: {id} not found for user {userId}");
+                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                }
+
+                existingAlbum.Title = albumDto.Title;
+                existingAlbum.Description = albumDto.Description;
+
+                var updatedAlbum = await _service.UpdateAlbumAsync(existingAlbum);
+
+                if (updatedAlbum == null)
+                {
+                    _loggingService.LogError("Failed to update the album, updatedAlbum is null");
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to update the album" });
+                }
+
+                var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(updatedAlbum);
+
+                _loggingService.LogInformation($"Successfully updated album with ID: {updatedAlbum.Id} for user {userId}");
+
+                var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
+                var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                _cache.Remove(cacheKeyV1);
+                _cache.Remove(cacheKeyV2);
+
+                return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
+            }
+            catch (UnauthorizedAccessException ex)
             {
-                _loggingService.LogWarning($"Album with ID: {id} not found");
-                return NotFound(new { message = "Album not found", albumId = id });
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
             }
-
-            // Update the existing album with the new values, excluding UserId
-            existingAlbum.Title = albumDto.Title;
-            existingAlbum.Description = albumDto.Description;
-
-            var updatedAlbum = await _service.UpdateAlbumAsync(existingAlbum);
-
-            if (updatedAlbum == null)
-            {
-                _loggingService.LogError("Failed to update the album, updatedAlbum is null");
-                return StatusCode(500, new { message = "Failed to update the album" });
-            }
-
-            var AlbumSummaryDto = _mapper.Map<AlbumSummaryDto>(updatedAlbum);
-
-            _loggingService.LogInformation($"Successfully updated album with ID: {updatedAlbum.Id}");
-
-            // Update the cache
-            var cacheKeyV1 = $"GetAlbumV1_{id}";
-            var cacheKeyV2 = $"GetAlbumV2_{id}";
-            _cache.Remove(cacheKeyV1);
-            _cache.Remove(cacheKeyV2);
-
-            return Ok(AlbumSummaryDto);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAlbum(int id)
         {
-            _loggingService.LogInformation($"Attempting to delete album with ID: {id}");
-
-            var album = await _service.GetAlbumAsync(id);
-            if (album is not null)
+            try
             {
-                await _service.DeleteAlbumAsync(id); // Use the delete method from the service
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Attempting to delete album with ID: {id} for user {userId}");
 
-                _loggingService.LogInformation($"Successfully soft deleted album with ID: {id}");
+                var album = await _service.GetAlbumAsync(id, userId);
+                if (album is not null)
+                {
+                    await _service.DeleteAlbumAsync(id, userId); // Use the delete method from the service
 
-                // Remove from cache
-                var cacheKeyV1 = $"GetAlbumV1_{id}";
-                var cacheKeyV2 = $"GetAlbumV2_{id}";
-                _cache.Remove(cacheKeyV1);
-                _cache.Remove(cacheKeyV2);
+                    _loggingService.LogInformation($"Successfully soft deleted album with ID: {id} for user {userId}");
 
-                return NoContent();
+                    // Remove from cache
+                    var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
+                    var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                    _cache.Remove(cacheKeyV1);
+                    _cache.Remove(cacheKeyV2);
+
+                    return StatusCode(StatusCodes.Status204NoContent);
+                }
+                else
+                {
+                    _loggingService.LogWarning($"Album with ID: {id} not found for user {userId}");
+                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                }
             }
-            else
+            catch (UnauthorizedAccessException ex)
             {
-                _loggingService.LogWarning($"Album with ID: {id} not found");
-                return NotFound(new { message = "Album not found", albumId = id });
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
             }
         }
 
         [HttpPost("{id}/undo-delete")]
         public async Task<IActionResult> UndoDeleteAlbum(int id)
         {
-            _loggingService.LogInformation($"Attempting to undo delete for album with ID: {id}");
-
-            var album = await _service.UndoDeleteAlbumAsync(id);
-            if (album != null)
+            try
             {
-                _loggingService.LogInformation($"Successfully restored album with ID: {id}");
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Attempting to undo delete for album with ID: {id} for user {userId}");
 
-                // Update the cache
-                var cacheKeyV1 = $"GetAlbumV1_{id}";
-                var cacheKeyV2 = $"GetAlbumV2_{id}";
-                _cache.Remove(cacheKeyV1);
-                _cache.Remove(cacheKeyV2);
+                var album = await _service.UndoDeleteAlbumAsync(id, userId);
+                if (album != null)
+                {
+                    _loggingService.LogInformation($"Successfully restored album with ID: {id} for user {userId}");
 
-                var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
-                return Ok(albumSummaryDto);
+                    // Update the cache
+                    var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
+                    var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                    _cache.Remove(cacheKeyV1);
+                    _cache.Remove(cacheKeyV2);
+
+                    var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
+                    return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
+                }
+                else
+                {
+                    _loggingService.LogWarning($"Album with ID: {id} not found or not deleted for user {userId}");
+                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found or not deleted", albumId = id });
+                }
             }
-            else
+            catch (UnauthorizedAccessException ex)
             {
-                _loggingService.LogWarning($"Album with ID: {id} not found or not deleted");
-                return NotFound(new { message = "Album not found or not deleted", albumId = id });
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
             }
         }
     }

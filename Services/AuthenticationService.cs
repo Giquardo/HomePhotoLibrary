@@ -28,10 +28,10 @@ namespace PhotoAlbumApi.Services
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("IsAdmin", user.IsAdmin.ToString())
+                new Claim("IsAdmin", user.IsAdmin.ToString()),
+                new Claim("UserId", user.Id.ToString()) 
             };
 
-            // Add role claim based on IsAdmin property
             if (user.IsAdmin)
             {
                 claims.Add(new Claim(ClaimTypes.Role, "Admin"));

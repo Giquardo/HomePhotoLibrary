@@ -47,7 +47,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    }); 
+    });
 builder.Services.AddFluentValidationAutoValidation()
                 .AddFluentValidationClientsideAdapters();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -148,7 +148,7 @@ var app = builder.Build();
 app.UseAuthentication(); // Enable authentication
 app.UseAuthorization(); // Enable authorization
 
-app.MapGet("/", () => "Backend Project - Photo Album API");
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // Map the controllers
 app.MapControllers();
