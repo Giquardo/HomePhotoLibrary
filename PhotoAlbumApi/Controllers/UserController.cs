@@ -93,17 +93,26 @@ public class UserController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateUser([FromBody] UserDto userDto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest("Invalid user data");
+        }
+
         _loggingService.LogInformation($"Creating user: {userDto.Username}");
         var user = _mapper.Map<User>(userDto);
         var createdUser = await _service.CreateUserAsync(user);
         var userDisplayDto = _mapper.Map<UserDisplayDto>(createdUser);
-        return StatusCode(StatusCodes.Status201Created, new { id = createdUser.Id, userDisplayDto });
+        return StatusCode(StatusCodes.Status201Created, userDisplayDto);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UserDto userDto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest("Invalid user data");
+        }
         _loggingService.LogInformation($"Updating user with ID: {id}");
         var user = _mapper.Map<User>(userDto);
         var updatedUser = await _service.UpdateUserAsync(id, user);
@@ -122,8 +131,17 @@ public class UserController : ControllerBase
     public async Task<IActionResult> DeleteUser(int id)
     {
         _loggingService.LogInformation($"Deleting user with ID: {id}");
+
+        var user = await _service.GetUserByIdAsync(id);
+        if (user == null)
+        {
+            _loggingService.LogWarning($"User with ID: {id} not found.");
+            return NotFound();
+        }
+
         await _service.DeleteUserAsync(id);
         _cache.Remove($"User_{id}");
+
         return StatusCode(StatusCodes.Status204NoContent);
     }
 }

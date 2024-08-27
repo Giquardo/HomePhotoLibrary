@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Mysqlx;
 namespace PhotoAlbumApi.Controllers
 {
     [ApiController]
@@ -16,14 +17,14 @@ namespace PhotoAlbumApi.Controllers
     [ApiVersion("1.0")]
     [ApiVersion("2.0")]
     [Authorize]
-    public class AlbumsController : ControllerBase
+    public class AlbumController : ControllerBase
     {
         private readonly IPhotoAlbumService _service;
         private readonly IMapper _mapper;
         private readonly ILoggingService _loggingService;
         private readonly IMemoryCache _cache;
 
-        public AlbumsController(IPhotoAlbumService service, IMapper mapper, ILoggingService loggingService, IMemoryCache cache)
+        public AlbumController(IPhotoAlbumService service, IMapper mapper, ILoggingService loggingService, IMemoryCache cache)
         {
             _service = service;
             _mapper = mapper;
@@ -198,8 +199,13 @@ namespace PhotoAlbumApi.Controllers
         [HttpPost]
         public async Task<IActionResult> AddAlbum(AlbumDto albumDto)
         {
+
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest("Invalid album data");
+                }
                 var userId = GetUserId();
                 _loggingService.LogInformation($"Adding a new album for user {userId}");
 
@@ -222,7 +228,7 @@ namespace PhotoAlbumApi.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return StatusCode(StatusCodes.Status401Unauthorized, ex.Message);
             }
         }
 
@@ -237,14 +243,14 @@ namespace PhotoAlbumApi.Controllers
                 if (albumDto == null)
                 {
                     _loggingService.LogWarning("Invalid album data provided");
-                    return StatusCode(StatusCodes.Status400BadRequest, new { message = "Invalid album data" });
+                    return BadRequest("Invalid album data");
                 }
 
                 var existingAlbum = await _service.GetAlbumAsync(id, userId);
                 if (existingAlbum == null)
                 {
                     _loggingService.LogWarning($"Album with ID: {id} not found for user {userId}");
-                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                    return NotFound(new { message = "Album not found", albumId = id });
                 }
 
                 existingAlbum.Title = albumDto.Title;
@@ -267,12 +273,12 @@ namespace PhotoAlbumApi.Controllers
                 _cache.Remove(cacheKeyV1);
                 _cache.Remove(cacheKeyV2);
 
-                return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
+                return Ok(albumSummaryDto);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return Unauthorized(ex.Message);
             }
         }
 
@@ -297,18 +303,18 @@ namespace PhotoAlbumApi.Controllers
                     _cache.Remove(cacheKeyV1);
                     _cache.Remove(cacheKeyV2);
 
-                    return StatusCode(StatusCodes.Status204NoContent);
+                    return Ok(new { message = "Album successfully deleted", albumId = id });
                 }
                 else
                 {
                     _loggingService.LogWarning($"Album with ID: {id} not found for user {userId}");
-                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found", albumId = id });
+                    return NotFound(new { message = "Album not found", albumId = id });
                 }
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return BadRequest(ex.Message);
             }
         }
 
@@ -332,18 +338,18 @@ namespace PhotoAlbumApi.Controllers
                     _cache.Remove(cacheKeyV2);
 
                     var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
-                    return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
+                    return Ok(albumSummaryDto);
                 }
                 else
                 {
                     _loggingService.LogWarning($"Album with ID: {id} not found or not deleted for user {userId}");
-                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Album not found or not deleted", albumId = id });
+                    return NotFound(new { message = "Album not found or not deleted", albumId = id });
                 }
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return BadRequest(ex.Message);
             }
         }
     }

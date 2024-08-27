@@ -11,6 +11,7 @@ namespace PhotoAlbumApi.Services
     public interface IAuthenticationService
     {
         string GenerateJwtToken(User user);
+
     }
 
     public class AuthenticationService : IAuthenticationService
@@ -29,7 +30,7 @@ namespace PhotoAlbumApi.Services
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim("IsAdmin", user.IsAdmin.ToString()),
-                new Claim("UserId", user.Id.ToString()) 
+                new Claim("UserId", user.Id.ToString())
             };
 
             if (user.IsAdmin)
@@ -50,5 +51,6 @@ namespace PhotoAlbumApi.Services
             var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
             return tokenString;
         }
+
     }
 }
