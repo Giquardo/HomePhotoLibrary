@@ -136,7 +136,7 @@ namespace PhotoAlbumApi.Controllers
                         _cache.Set(cacheKey, albumSummaryDto, cacheEntryOptions);
 
                         _loggingService.LogInformation($"Version: 1.0 - Successfully fetched album with ID: {id} for user {userId}");
-                        return StatusCode(StatusCodes.Status200OK, albumSummaryDtos);
+                        return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
                     }
                     else
                     {
@@ -145,7 +145,7 @@ namespace PhotoAlbumApi.Controllers
                     }
                 }
 
-                return StatusCode(StatusCodes.Status200OK, albumSummaryDtos);
+                return StatusCode(StatusCodes.Status200OK, albumSummaryDto);
             }
             catch (UnauthorizedAccessException ex)
             {

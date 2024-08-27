@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
+using PhotoAlbumApi.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,7 @@ builder.Services.AddTransient<IPhotoRepository, PhotoRepository>();
 builder.Services.AddTransient<IUserRepository, UserRepository>();
 
 // Register services
+builder.Services.AddTransient<IImageService, ImageService>();
 builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
 builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
 builder.Services.AddTransient<IUserService, UserService>();
@@ -141,6 +143,9 @@ builder.Services.AddSwaggerGen(c =>
 
     // Add this to resolve conflicting actions
     c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
+    // Add the custom operation filter for file uploads
+    c.OperationFilter<FileUploadOperationFilter>();
 });
 
 var app = builder.Build();
@@ -162,5 +167,4 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Photo Album API v1.0");
 });
 
-// Map the endpoints defined in AlbumsApi
 app.Run("http://localhost:3000");

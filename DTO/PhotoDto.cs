@@ -1,22 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PhotoAlbumApi.DTOs;
 
 public class PhotoDto
 {
-    public int? Id { get; set; }
+    [Required]
+    public int AlbumId { get; set; }
 
-    public required int AlbumId { get; set; }
+    [Required]
+    [MaxLength(100)]
+    public string Title { get; set; } = string.Empty;
 
-    public required string Title { get; set; }
-
-    public DateTime DateUploaded { get; set; } 
-
+    [MaxLength(500)]
     public string Description { get; set; } = string.Empty;
 
-    public string Extension { get; set; } = string.Empty;
-
-    public string FilePath { get; set; } = string.Empty;
-
+    [MaxLength(2083)]
     public string Url { get; set; } = string.Empty;
 
-    public string Hash { get; set; } = string.Empty;
 }
