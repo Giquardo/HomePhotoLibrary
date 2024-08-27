@@ -312,7 +312,7 @@ namespace PhotoAlbumApi.Controllers
             }
         }
 
-        [HttpPost("{id}/undo-delete")]
+        [HttpPut("undo-delete/{id}")]
         public async Task<IActionResult> UndoDeleteAlbum(int id)
         {
             try

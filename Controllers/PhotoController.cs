@@ -118,13 +118,10 @@ namespace PhotoAlbumApi.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("upload")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult> UploadPhoto([FromForm] PhotoUploadDto photoUploadDto)
         {
-            if (photoUploadDto.File == null || photoUploadDto.File.Length == 0)
-                return BadRequest("File must be provided.");
-
             try
             {
                 var userId = GetUserId();
@@ -164,58 +161,123 @@ namespace PhotoAlbumApi.Controllers
             }
         }
 
-        // [HttpPut("{id}")]
-        // public async Task<IActionResult> UpdatePhoto(int id, PhotoDto photoDto)
-        // {
-        //     try
-        //     {
-        //         var userId = GetUserId();
-        //         _loggingService.LogInformation($"Updating photo with ID: {id} for user {userId}");
+        [HttpPost]
+        public async Task<ActionResult> AddPhoto([FromBody] PhotoDto photoDto)
+        {
+            try
+            {
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Adding a new photo for user {userId} from URL: {photoDto.Url}");
 
-        //         if (photoDto == null)
-        //         {
-        //             _loggingService.LogWarning("Photo data is missing");
-        //             return BadRequest(new { message = "Photo data is missing" });
-        //         }
+                var photo = new Photo
+                {
+                    AlbumId = photoDto.AlbumId,
+                    Title = photoDto.Title,
+                    Description = photoDto.Description,
+                    UserId = userId,
+                    Url = photoDto.Url
+                };
 
-        //         // Retrieve the existing photo from the service/repository
-        //         var existingPhoto = await _service.GetPhotoAsync(userId, id);
-        //         if (existingPhoto == null)
-        //         {
-        //             _loggingService.LogWarning($"Photo with ID: {id} not found for user {userId}");
-        //             return NotFound(new { message = "Photo not found", photoId = id });
-        //         }
+                var addedPhoto = await _service.AddPhotoAsync(photo, photo.Url, null);
+                _loggingService.LogInformation($"Successfully added a new photo with ID: {addedPhoto.Id} for user {userId}");
 
-        //         // Assign updated properties to the existing photo object
-        //         existingPhoto.AlbumId = photoDto.AlbumId;
-        //         existingPhoto.Title = photoDto.Title;
-        //         existingPhoto.Description = photoDto.Description;
-        //         existingPhoto.Url = photoDto.Url;
+                var cacheKey = $"GetPhotos_{userId}";
+                _cache.Remove(cacheKey);
 
-        //         // Pass the updated photo object to the repository for processing
-        //         var updatedPhoto = await _service.UpdatePhotoAsync(existingPhoto);
+                var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(addedPhoto);
+                return StatusCode(StatusCodes.Status201Created, photoDisplayDto);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _loggingService.LogError(ex, "Error adding photo");
+                return StatusCode(StatusCodes.Status409Conflict, new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status401Unauthorized, new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _loggingService.LogError(ex, "An unexpected error occurred while adding the photo");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred. Please try again later." });
+            }
+        }
 
-        //         // Check if the update was successful
-        //         if (updatedPhoto == null)
-        //         {
-        //             _loggingService.LogError($"Failed to update photo with ID: {id} for user {userId}");
-        //             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An error occurred while updating the photo" });
-        //         }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePhoto(int id, PhotoUpdateDto photoUpdateDto)
+        {
+            try
+            {
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Updating photo with ID: {id} for user {userId}");
 
-        //         // Invalidate the cache if necessary
-        //         _cache.Remove($"GetPhoto_{userId}_{id}");
-        //         _loggingService.LogInformation($"Cache invalidated for photo ID: {id} for user {userId}");
+                if (photoUpdateDto == null)
+                {
+                    _loggingService.LogWarning("Photo data is missing");
+                    return BadRequest(new { message = "Photo data is missing" });
+                }
 
-        //         // Return the updated photo data
-        //         var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(updatedPhoto);
-        //         return Ok(photoDisplayDto);
-        //     }
-        //     catch (UnauthorizedAccessException ex)
-        //     {
-        //         _loggingService.LogError(ex.Message);
-        //         return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
-        //     }
-        // }
+                // Retrieve the existing photo from the service/repository
+                var existingPhoto = await _service.GetPhotoAsync(id, userId);
+                if (existingPhoto == null)
+                {
+                    _loggingService.LogWarning($"Photo with ID: {id} not found for user {userId}");
+                    return NotFound(new { message = "Photo not found", photoId = id });
+                }
+
+                existingPhoto.AlbumId = photoUpdateDto.AlbumId ?? existingPhoto.AlbumId;
+                existingPhoto.Title = photoUpdateDto.Title ?? existingPhoto.Title;
+                existingPhoto.Description = photoUpdateDto.Description ?? existingPhoto.Description;
+
+                // Pass the updated photo object to the repository for processing
+                var updatedPhoto = await _service.UpdatePhotoAsync(existingPhoto);
+
+                // Check if the update was successful
+                if (updatedPhoto == null)
+                {
+                    _loggingService.LogError($"Failed to update photo with ID: {id} for user {userId}");
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An error occurred while updating the photo" });
+                }
+
+                // Invalidate the cache if necessary
+                _cache.Remove($"GetPhoto_{userId}_{id}");
+                _loggingService.LogInformation($"Cache invalidated for photo ID: {id} for user {userId}");
+
+                // Return the updated photo data
+                var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(updatedPhoto);
+                return Ok(photoDisplayDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
+        }
+
+        [HttpGet("download/{id}")]
+        public async Task<IActionResult> DownloadPhoto(int id)
+        {
+            try
+            {
+                var userId = GetUserId();
+                _loggingService.LogInformation($"Downloading photo with ID: {id} for user {userId}");
+
+                var photoFileDto = await _service.GetPhotoFileAsync(id, userId);
+                if (photoFileDto == null)
+                {
+                    _loggingService.LogWarning($"Photo with ID: {id} not found for user {userId}");
+                    return NotFound(new { message = "Photo not found", photoId = id });
+                }
+
+                return File(photoFileDto.FileData, photoFileDto.ContentType, photoFileDto.FileName);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+            }
+        }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePhoto(int id)
@@ -252,7 +314,7 @@ namespace PhotoAlbumApi.Controllers
             }
         }
 
-        [HttpPost("{id}/undo-delete")]
+        [HttpPut("undo-delete/{id}")]
         public async Task<IActionResult> UndoDeletePhoto(int id)
         {
             try
@@ -267,7 +329,7 @@ namespace PhotoAlbumApi.Controllers
 
                     _cache.Remove($"GetPhoto_{userId}_{id}");
                     _loggingService.LogInformation($"Cache invalidated for photo ID: {id} for user {userId}");
-                    
+
                     var cacheKey = $"GetPhotos_{userId}";
                     _cache.Remove(cacheKey);
                     _loggingService.LogInformation($"Cache invalidated for all photos for user {userId}");

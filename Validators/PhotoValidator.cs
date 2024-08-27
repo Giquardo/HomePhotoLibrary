@@ -19,7 +19,9 @@ public class PhotoValidator : AbstractValidator<PhotoDto>
             .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
 
         RuleFor(photo => photo.Url)
-            .Must(url => string.IsNullOrEmpty(url) || Uri.IsWellFormedUriString(url, UriKind.Absolute))
-            .WithMessage("URL must be a well-formed absolute URI if provided.");
+            .NotEmpty()
+            .WithMessage("URL must be provided.")
+            .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            .WithMessage("URL must be a well-formed absolute URI.");
     }
 }

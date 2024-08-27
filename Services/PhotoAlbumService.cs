@@ -1,6 +1,9 @@
 using PhotoAlbumApi.Models;
 using PhotoAlbumApi.Repositories;
 using System.Security.Cryptography;
+using PhotoAlbumApi.Services;
+using PhotoAlbumApi.DTOs;
+
 
 namespace PhotoAlbumApi.Services;
 public interface IPhotoAlbumService
@@ -15,10 +18,10 @@ public interface IPhotoAlbumService
     Task<IEnumerable<Photo>> GetPhotosAsync(int userId);
     Task<Photo?> GetPhotoAsync(int id, int userId);
     Task<Photo> AddPhotoAsync(Photo photo, string imageUrl = null, IFormFile file = null);
-    Task<Photo?> UpdatePhotoAsync(Photo photo, string imageUrl = null, IFormFile file = null);
+    Task<Photo?> UpdatePhotoAsync(Photo photo);
     Task DeletePhotoAsync(int id, int userId);
     Task<Photo> UndoDeletePhotoAsync(int id, int userId);
-
+    Task<PhotoFileDto?> GetPhotoFileAsync(int photoId, int userId);
 }
 
 public class PhotoAlbumService : IPhotoAlbumService
@@ -26,12 +29,14 @@ public class PhotoAlbumService : IPhotoAlbumService
     private readonly IAlbumRepository _albumRepository;
     private readonly IPhotoRepository _photoRepository;
     private readonly IImageService _imageService;
+    private readonly LoggingService _loggingService;
 
-    public PhotoAlbumService(IAlbumRepository albumRepository, IPhotoRepository photoRepository, IImageService imageService)
+    public PhotoAlbumService(IAlbumRepository albumRepository, IPhotoRepository photoRepository, IImageService imageService, LoggingService loggingService)
     {
         _albumRepository = albumRepository;
         _photoRepository = photoRepository;
         _imageService = imageService;
+        _loggingService = loggingService;
     }
 
     public async Task<IEnumerable<Album>> GetAlbumsAsync(int userId)
@@ -87,25 +92,25 @@ public class PhotoAlbumService : IPhotoAlbumService
         {
             throw new ArgumentException("Either a URL or a file must be provided.");
         }
-    
+
         // Calculate the hash of the image
         photo.Hash = CalculateHash(photo.FilePath);
-    
+
         // Check if an image with the same hash already exists
         var existingPhoto = await _photoRepository.GetPhotoByHashAsync(photo.Hash);
         if (existingPhoto != null)
         {
             throw new InvalidOperationException("An image with the same hash already exists.");
         }
-    
+
         // Proceed with adding the photo
         photo.Extension = Path.GetExtension(photo.FilePath);
         photo.DateUploaded = DateTime.Now;
-    
+
         return await _photoRepository.AddPhotoAsync(photo);
     }
 
-    public async Task<Photo?> UpdatePhotoAsync(Photo photo, string imageUrl = null, IFormFile file = null)
+    public async Task<Photo?> UpdatePhotoAsync(Photo photo)
     {
         var existingPhoto = await _photoRepository.GetPhotoByIdAsync(photo.Id, photo.UserId);
         if (existingPhoto == null || existingPhoto.IsDeleted)
@@ -113,43 +118,12 @@ public class PhotoAlbumService : IPhotoAlbumService
             return null;
         }
 
-        if (!string.IsNullOrEmpty(imageUrl) && !string.Equals(imageUrl, existingPhoto.Url, StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                photo.FilePath = await _imageService.DownloadImageAsync(imageUrl);
-                photo.Hash = CalculateHash(photo.FilePath);
-                photo.Extension = Path.GetExtension(photo.FilePath);
+        // Update specific properties
+        existingPhoto.AlbumId = photo.AlbumId;
+        existingPhoto.Title = photo.Title;
+        existingPhoto.Description = photo.Description;
 
-                if (!string.IsNullOrEmpty(existingPhoto.FilePath))
-                {
-                    DeleteImage(existingPhoto.FilePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error occurred while downloading or processing the new image: {ex.Message}");
-            }
-        }
-        else if (file != null && file.Length > 0)
-        {
-            try
-            {
-                photo.FilePath = await _imageService.SaveUploadedFileAsync(file);
-                photo.Hash = CalculateHash(photo.FilePath);
-                photo.Extension = Path.GetExtension(photo.FilePath);
-
-                if (!string.IsNullOrEmpty(existingPhoto.FilePath))
-                {
-                    DeleteImage(existingPhoto.FilePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error occurred while saving or processing the new uploaded file: {ex.Message}");
-            }
-        }
-        return await _photoRepository.UpdatePhotoAsync(photo);
+        return await _photoRepository.UpdatePhotoAsync(existingPhoto);
     }
 
     public async Task DeletePhotoAsync(int id, int userId)
@@ -160,6 +134,26 @@ public class PhotoAlbumService : IPhotoAlbumService
     public async Task<Photo> UndoDeletePhotoAsync(int id, int userId)
     {
         return await _photoRepository.UndoDeletePhotoAsync(id, userId);
+    }
+
+    public async Task<PhotoFileDto?> GetPhotoFileAsync(int photoId, int userId)
+    {
+        var photo = await _photoRepository.GetPhotoByIdAsync(photoId, userId);
+        if (photo == null || photo.IsDeleted)
+        {
+            return null;
+        }
+    
+        var fileBytes = await File.ReadAllBytesAsync(photo.FilePath);
+        var fileName = $"{photo.Title.Replace(" ", "_")}{photo.Extension}";
+    
+        return new PhotoFileDto
+        {
+            Photo = photo,
+            FileData = fileBytes,
+            FileName = fileName,
+            ContentType = GetContentType(photo.Extension)
+        };
     }
 
     private void DeleteImage(string filePath)
@@ -180,5 +174,16 @@ public class PhotoAlbumService : IPhotoAlbumService
                 return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
             }
         }
+    }
+
+    private string GetContentType(string extension)
+    {
+        return extension switch
+        {
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            _ => "application/octet-stream"
+        };
     }
 }
