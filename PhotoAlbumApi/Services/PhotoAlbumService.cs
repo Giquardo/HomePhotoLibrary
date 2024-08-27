@@ -29,9 +29,9 @@ public class PhotoAlbumService : IPhotoAlbumService
     private readonly IAlbumRepository _albumRepository;
     private readonly IPhotoRepository _photoRepository;
     private readonly IImageService _imageService;
-    private readonly LoggingService _loggingService;
+    private readonly ILoggingService _loggingService;
 
-    public PhotoAlbumService(IAlbumRepository albumRepository, IPhotoRepository photoRepository, IImageService imageService, LoggingService loggingService)
+    public PhotoAlbumService(IAlbumRepository albumRepository, IPhotoRepository photoRepository, IImageService imageService, ILoggingService loggingService)
     {
         _albumRepository = albumRepository;
         _photoRepository = photoRepository;

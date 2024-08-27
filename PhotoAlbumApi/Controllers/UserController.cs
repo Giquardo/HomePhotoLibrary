@@ -15,11 +15,11 @@ public class UserController : ControllerBase
 {
     private readonly IUserService _service;
     private readonly IAuthenticationService _authService;
-    private readonly LoggingService _loggingService;
+    private readonly ILoggingService _loggingService;
     private readonly IMemoryCache _cache;
     private readonly IMapper _mapper;
 
-    public UserController(IUserService service, IAuthenticationService authService, LoggingService loggingService, IMemoryCache cache, IMapper mapper)
+    public UserController(IUserService service, IAuthenticationService authService, ILoggingService loggingService, IMemoryCache cache, IMapper mapper)
     {
         _service = service;
         _authService = authService;

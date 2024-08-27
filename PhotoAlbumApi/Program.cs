@@ -58,7 +58,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // Register the custom logging service as a singleton
-builder.Services.AddSingleton(new LoggingService("Logs/custom_log.txt"));
+builder.Services.AddSingleton<ILoggingService>(new LoggingService("Logs/custom_log.txt"));
 
 // Register Memory Cache service
 builder.Services.AddMemoryCache();

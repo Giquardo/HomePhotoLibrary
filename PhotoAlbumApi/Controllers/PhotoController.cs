@@ -21,10 +21,10 @@ namespace PhotoAlbumApi.Controllers
     {
         private readonly IPhotoAlbumService _service;
         private readonly IMapper _mapper;
-        private readonly LoggingService _loggingService;
+        private readonly ILoggingService _loggingService;
         private readonly IMemoryCache _cache;
 
-        public PhotoController(IPhotoAlbumService service, IMapper mapper, LoggingService loggingService, IMemoryCache cache)
+        public PhotoController(IPhotoAlbumService service, IMapper mapper, ILoggingService loggingService, IMemoryCache cache)
         {
             _service = service;
             _mapper = mapper;
