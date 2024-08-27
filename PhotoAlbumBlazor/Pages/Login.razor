@@ -1,0 +1,67 @@
+@page "/login"
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+
+<h3>Login</h3>
+
+@if (isLoggedIn)
+{
+    <p>You are logged in as @userName.</p>
+    <button @onclick="Logout">Logout</button>
+}
+else
+{
+    <input @bind="userName" placeholder="Username" />
+    <input @bind="password" type="password" placeholder="Password" />
+    <button @onclick="PerformLogin">Login</button>
+}
+
+@code {
+    private string userName;
+    private string password;
+    private bool isLoggedIn;
+
+    private async Task PerformLogin()
+    {
+        var loginModel = new { UserName = userName, Password = password };
+        var response = await Http.PostAsJsonAsync("api/users/login", loginModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+            await LocalStorage.SetItemAsync("authToken", result.Token);
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
+            isLoggedIn = true;
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            // Handle login failure
+        }
+    }
+
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        Http.DefaultRequestHeaders.Authorization = null;
+        isLoggedIn = false;
+        Navigation.NavigateTo("/login");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            isLoggedIn = true;
+        }
+    }
+
+    private class LoginResult
+    {
+        public string Token { get; set; }
+    }
+}

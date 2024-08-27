@@ -163,10 +163,24 @@ public class Program
         builder.Services.AddGrpc();
         builder.Services.AddScoped<IGrpcPhotoRepository, GrpcPhotoRepository>();
 
+        // Configure CORS
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder =>
+            {
+                builder.AllowAnyOrigin()
+                       .AllowAnyMethod()
+                       .AllowAnyHeader();
+            });
+        });
+
         var app = builder.Build();
 
         app.UseAuthentication(); // Enable authentication
         app.UseAuthorization(); // Enable authorization
+
+        // Enable CORS
+        app.UseCors();
 
         app.MapGet("/", () => Results.Redirect("/swagger"));
 

@@ -162,7 +162,7 @@ namespace PhotoAlbumApi.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> AddPhoto([FromBody] PhotoDto photoDto)
+        public async Task<ActionResult> AddPhoto([FromForm] PhotoDto photoDto)
         {
             try
             {
@@ -181,8 +181,9 @@ namespace PhotoAlbumApi.Controllers
                 var addedPhoto = await _service.AddPhotoAsync(photo, photo.Url, null);
                 _loggingService.LogInformation($"Successfully added a new photo with ID: {addedPhoto.Id} for user {userId}");
 
-                var cacheKey = $"GetPhotos_{userId}";
-                _cache.Remove(cacheKey);
+                _cache.Remove($"GetPhotos_{userId}");
+                _cache.Remove($"GetAlbumsV1_{userId}");
+                _cache.Remove($"GetAlbumsV2_{userId}");
 
                 var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(addedPhoto);
                 return StatusCode(StatusCodes.Status201Created, photoDisplayDto);
@@ -241,8 +242,16 @@ namespace PhotoAlbumApi.Controllers
                 }
 
                 // Invalidate the cache if necessary
-                _cache.Remove($"GetPhoto_{userId}_{id}");
-                _loggingService.LogInformation($"Cache invalidated for photo ID: {id} for user {userId}");
+                _cache.Remove($"GetPhoto_{userId}_{existingPhoto.AlbumId}");
+                _cache.Remove($"GetPhoto_{userId}_{updatedPhoto.AlbumId}");
+                _cache.Remove($"GetAlbumsV1_{userId}");
+                _cache.Remove($"GetAlbumV1_{userId}_{existingPhoto.AlbumId}");
+                _cache.Remove($"GetAlbumV1_{userId}_{updatedPhoto.AlbumId}");
+                _cache.Remove($"GetAlbumsV2_{userId}");
+
+                _cache.Remove($"GetPhotos_{userId}");
+                _cache.Remove($"GetPhotos_{userId}_{existingPhoto.AlbumId}");
+                _cache.Remove($"GetPhotos_{userId}_{updatedPhoto.AlbumId}");
 
                 // Return the updated photo data
                 var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(updatedPhoto);
@@ -302,7 +311,12 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Cache invalidated for photo ID: {id} for user {userId}");
 
                 var cacheKey = $"GetPhotos_{userId}";
+                var cacheKeyAlbum = $"GetPhoto_{userId}_{existingPhoto.AlbumId}";
+                _cache.Remove($"GetAlbumsV1_{userId}");
+                _cache.Remove($"GetAlbumV1_{userId}_{existingPhoto.AlbumId}");
+                _cache.Remove(cacheKeyAlbum);
                 _cache.Remove(cacheKey);
+
                 _loggingService.LogInformation($"Cache invalidated for all photos for user {userId}");
 
                 return Ok("Photo deleted successfully");

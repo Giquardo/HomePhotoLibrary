@@ -1,0 +1,167 @@
+@page "/album/{albumId:int}"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+@using System.Net.Http.Json
+
+@code {
+    [Parameter]
+    public int albumId { get; set; }
+
+    private AlbumDetailDto album;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        album = await Http.GetFromJsonAsync<AlbumDetailDto>($"api/v1/albums/{albumId}");
+    }
+
+    private void NavigateToUpdatePhoto(int photoId)
+    {
+        Navigation.NavigateTo($"/update-photo/{photoId}");
+    }
+
+    private void NavigateToAddPhoto()
+    {
+        Navigation.NavigateTo($"/add-photo/{albumId}");
+    }
+
+    public class AlbumDetailDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public IList<Photo> Photos { get; set; } = new List<Photo>();
+        public int UserId { get; set; }
+    }
+
+    public class Photo
+    {
+        public int Id { get; set; }
+        public string Url { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime DateUploaded { get; set; }
+        public string Extension { get; set; } = string.Empty;
+    }
+}
+
+@if (album == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div>
+        <h4>@album.Title</h4>
+        <p>@album.Description</p>
+        <button class="btn btn-success" @onclick="NavigateToAddPhoto">Add Photo</button>
+        <div class="photos">
+            <div class="photo-header">
+                <p>ID</p>
+                <p>Photo</p>
+                <p>Title</p>
+                <p>Description</p>
+                <p>Date</p>
+                <p>Extension</p>
+                <p>Actions</p>
+            </div>
+            @foreach (var photo in album.Photos)
+            {
+                <div class="photo-item">
+                    <div class="photo-details">
+                        <p>@photo.Id</p>
+                        <img src="@photo.Url" alt="Photo" class="photo-thumbnail" />
+                        <p>@photo.Title</p>
+                        <p>@photo.Description</p>
+                        <p>@photo.DateUploaded</p>
+                        <p>@photo.Extension</p>
+                        <button class="btn btn-primary" @onclick="() => NavigateToUpdatePhoto(photo.Id)">Update Photo</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .photos {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .photo-header, .photo-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 10px 0;
+    }
+
+    .photo-header {
+        font-weight: bold;
+        background-color: #d3d3d3; /* Light grey for header */
+        padding: 10px;
+    }
+
+    .photo-thumbnail {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        margin-right: 10px;
+    }
+
+    .photo-details {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+
+    .photo-details p, .photo-header p {
+        margin: 0 10px;
+        flex: 1;
+        text-align: center;
+    }
+
+    .photo-item:nth-child(odd) {
+        background-color: #f0f0f0; /* Light grey */
+    }
+
+    .photo-item:nth-child(even) {
+        background-color: #ffffff; /* White */
+    }
+
+    .btn {
+        padding: 10px 20px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+
+    .btn-primary {
+        background-color: #28a745;
+    }
+
+    .btn-primary:hover {
+        background-color: #28a745;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+    }
+
+    .btn-success:hover {
+        background-color: #218838;
+    }
+</style>

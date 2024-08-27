@@ -26,15 +26,16 @@ public class AlbumRepository : IAlbumRepository
     public async Task<IEnumerable<Album>> GetAlbumsAsync(int userId)
     {
         return await _context.Albums
-            .Include(a => a.Photos)
+            .Include(a => a.Photos.Where(p => !p.IsDeleted)) // Filter out deleted photos
             .Where(a => a.UserId == userId && !a.IsDeleted)
+            .OrderByDescending(a => a.Photos.Count) // Sort by the size of the photo lists
             .ToListAsync();
     }
-
+    
     public async Task<Album?> GetAlbumByIdAsync(int id, int userId)
     {
         return await _context.Albums
-            .Include(a => a.Photos)
+            .Include(a => a.Photos.Where(p => !p.IsDeleted)) // Filter out deleted photos
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId && !a.IsDeleted); // Filter out deleted albums
     }
 

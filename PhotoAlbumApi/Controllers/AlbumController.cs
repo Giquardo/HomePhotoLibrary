@@ -270,8 +270,10 @@ namespace PhotoAlbumApi.Controllers
 
                 var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
                 var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                var cacheKeyV1All = $"GetAlbumsV1_{userId}";
                 _cache.Remove(cacheKeyV1);
                 _cache.Remove(cacheKeyV2);
+                _cache.Remove(cacheKeyV1All);
 
                 return Ok(albumSummaryDto);
             }
@@ -300,8 +302,10 @@ namespace PhotoAlbumApi.Controllers
                     // Remove from cache
                     var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
                     var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                    var cacheKeyV1All = $"GetAlbumsV1_{userId}";
                     _cache.Remove(cacheKeyV1);
                     _cache.Remove(cacheKeyV2);
+                    _cache.Remove(cacheKeyV1All);
 
                     return Ok(new { message = "Album successfully deleted", albumId = id });
                 }
@@ -334,8 +338,10 @@ namespace PhotoAlbumApi.Controllers
                     // Update the cache
                     var cacheKeyV1 = $"GetAlbumV1_{userId}_{id}";
                     var cacheKeyV2 = $"GetAlbumV2_{userId}_{id}";
+                    var cacheKeyV1All = $"GetAlbumsV1_{userId}";
                     _cache.Remove(cacheKeyV1);
                     _cache.Remove(cacheKeyV2);
+                    _cache.Remove(cacheKeyV1All);
 
                     var albumSummaryDto = _mapper.Map<AlbumSummaryDto>(album);
                     return Ok(albumSummaryDto);

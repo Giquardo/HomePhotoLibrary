@@ -1,0 +1,90 @@
+@page "/add-album"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<h3>Add New Album</h3>
+
+<EditForm Model="newAlbum" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="title">Title</label>
+        <InputText id="title" class="form-control" @bind-Value="newAlbum.Title" />
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+        <InputTextArea id="description" class="form-control" @bind-Value="newAlbum.Description" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add Album</button>
+</EditForm>
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        background-color: #0056b3;
+    }
+</style>
+
+@code {
+    private AlbumSummaryDto newAlbum = new AlbumSummaryDto();
+
+    private async Task HandleValidSubmit()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var response = await Http.PostAsJsonAsync("api/v1/albums", newAlbum);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/albums");
+        }
+        else
+        {
+            // Handle error
+        }
+    }
+
+    public class AlbumSummaryDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public IList<Photo> Photos { get; set; } = new List<Photo>();
+        public int UserId { get; set; }
+    }
+
+    public class Photo
+    {
+        public int Id { get; set; }
+        public string Url { get; set; } = string.Empty;
+    }
+}

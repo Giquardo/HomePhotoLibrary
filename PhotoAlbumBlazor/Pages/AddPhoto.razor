@@ -1,0 +1,132 @@
+@page "/add-photo/{albumId:int}"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Json
+
+@code {
+    [Parameter]
+    public int albumId { get; set; }
+
+    private Photo newPhoto = new Photo();
+    private string imageUrl;
+    private IBrowserFile file;
+    private string errorMessage;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var content = new MultipartFormDataContent();
+            content.Add(new StringContent(albumId.ToString()), "albumId");
+            content.Add(new StringContent(newPhoto.Title), "title");
+            content.Add(new StringContent(newPhoto.Description), "description");
+
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                content.Add(new StringContent(imageUrl), "url");
+            }
+            else if (file != null)
+            {
+                var fileContent = new StreamContent(file.OpenReadStream());
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", file.Name);
+            }
+            else
+            {
+                throw new ArgumentException("Either a URL or a file must be provided.");
+            }
+
+            var response = await Http.PostAsync("api/photos", content);
+            response.EnsureSuccessStatusCode();
+
+            Navigation.NavigateTo($"/album/{albumId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+    }
+
+    public class Photo
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+}
+
+<h3>Add Photo</h3>
+
+<EditForm Model="newPhoto" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="title">Title</label>
+        <InputText id="title" class="form-control" @bind-Value="newPhoto.Title" />
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+        <InputTextArea id="description" class="form-control" @bind-Value="newPhoto.Description" />
+    </div>
+
+    <div class="form-group">
+        <label for="imageUrl">Image URL</label>
+        <InputText id="imageUrl" class="form-control" @bind-Value="imageUrl" />
+    </div>
+
+    <div class="form-group">
+        <label for="file">Upload File</label>
+        <InputFile id="file" class="form-control" OnChange="HandleFileSelected" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button type="submit" class="btn btn-primary">Add Photo</button>
+</EditForm>
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .alert {
+        margin-top: 20px;
+    }
+</style>

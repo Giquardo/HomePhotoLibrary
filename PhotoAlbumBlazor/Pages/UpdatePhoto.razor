@@ -1,0 +1,129 @@
+@page "/update-photo/{photoId:int}"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Json
+
+<h3>Update Photo</h3>
+
+<EditForm Model="updatedPhoto" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="albumId">Album ID</label>
+        <InputNumber id="albumId" class="form-control" @bind-Value="updatedPhoto.AlbumId" />
+    </div>
+
+    <div class="form-group">
+        <label for="title">Title</label>
+        <InputText id="title" class="form-control" @bind-Value="updatedPhoto.Title" />
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+        <InputTextArea id="description" class="form-control" @bind-Value="updatedPhoto.Description" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Update Photo</button>
+    <button type="button" class="btn btn-danger" @onclick="HandleDelete">Delete Photo</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@code {
+    [Parameter]
+    public int PhotoId { get; set; }
+
+    private PhotoDto updatedPhoto = new PhotoDto();
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPhotoDetails();
+    }
+
+    private async Task LoadPhotoDetails()
+    {
+        try
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.GetAsync($"api/photos/{PhotoId}");
+            response.EnsureSuccessStatusCode();
+
+            updatedPhoto = await response.Content.ReadFromJsonAsync<PhotoDto>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.PutAsJsonAsync($"api/photos/{PhotoId}", updatedPhoto);
+            response.EnsureSuccessStatusCode();
+
+            Navigation.NavigateTo($"/album/{updatedPhoto.AlbumId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        try
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.DeleteAsync($"api/photos/{PhotoId}");
+            response.EnsureSuccessStatusCode();
+
+            Navigation.NavigateTo("/photos");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    public class PhotoDto
+    {
+        public int AlbumId { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+    }
+}

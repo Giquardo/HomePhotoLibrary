@@ -1,0 +1,217 @@
+@page "/albums"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<h3>Albums</h3>
+
+<button @onclick="NavigateToAddAlbum" class="add-album-button">Add Album</button>
+
+@if (albums == null)
+{
+    <p>Loading...</p>
+}
+else if (!albums.Any())
+{
+    <p>No albums found.</p>
+}
+else
+{
+    <div class="albums-wrapper">
+        <div class="album-details-container">
+            <div class="album-header">
+                <div class="album-column id-column">
+                    <p>ID</p>
+                </div>
+                <div class="album-column">
+                    <p>Title</p>
+                </div>
+                <div class="album-column">
+                    <p>Description</p>
+                </div>
+                <div class="album-column">
+                    <p>Number of Photos</p>
+                </div>
+            </div>
+            @foreach (var album in albums.Select((value, index) => new { value, index }))
+            {
+                <div class="album-row @(album.index % 2 == 0 ? "grey-background" : "white-background")" @onclick="() => NavigateToAlbum(album.value.Id)">
+                    <div class="album-column id-column">
+                        <p>@album.value.Id</p>
+                    </div>
+                    <div class="album-column">
+                        <h4>@album.value.Title</h4>
+                    </div>
+                    <div class="album-column">
+                        <p>@album.value.Description</p>
+                    </div>
+                    <div class="album-column">
+                        <p>@album.value.Photos.Count</p>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="album-actions-container">
+            <div class="album-header">
+                <div class="album-column">
+                    <p>Actions</p>
+                </div>
+            </div>
+            @foreach (var album in albums.Select((value, index) => new { value, index }))
+            {
+                <div class="album-row @(album.index % 2 == 0 ? "grey-background" : "white-background")">
+                    <div class="album-column">
+                        <button @onclick="@(e => NavigateToUpdateAlbum(e, album.value.Id))" class="update-album-button">Update</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .add-album-button {
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .add-album-button:hover {
+        background-color: #28a745;
+    }
+
+    .update-album-button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        height: 40px;
+        /* Fixed height for button */
+        width: 100%;
+        /* Ensure button takes full width of column */
+    }
+
+    .update-album-button:hover {
+        background-color: #218838;
+    }
+
+    .albums-wrapper {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+    }
+
+    .album-details-container {
+        display: flex;
+        flex-direction: column;
+        width: 90%;
+    }
+
+    .album-actions-container {
+        display: flex;
+        flex-direction: column;
+        width: 10%;
+    }
+
+    .album-header,
+    .album-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .album-header {
+        font-weight: bold;
+        background-color: #d3d3d3;
+    }
+
+    .album-column {
+        flex: 1;
+        padding: 0 10px;
+        text-align: center;
+    }
+
+    .id-column {
+        flex: 0 0 64px;
+        padding: 0 10px;
+    }
+
+    .grey-background {
+        background-color: #f0f0f0;
+    }
+
+    .white-background {
+        background-color: #ffffff;
+    }
+
+    .album-row:hover {
+        background-color: #d0d0d0;
+        cursor: pointer;
+    }
+
+    .album-row {
+        align-items: 50px;
+    }
+
+    .album-column {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+@code {
+    private List<AlbumSummaryDto> albums;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        albums = await Http.GetFromJsonAsync<List<AlbumSummaryDto>>("api/v1/albums");
+    }
+
+    private void NavigateToAlbum(int albumId)
+    {
+        Navigation.NavigateTo($"/album/{albumId}");
+    }
+
+    private void NavigateToAddAlbum()
+    {
+        Navigation.NavigateTo("/add-album");
+    }
+
+    private void NavigateToUpdateAlbum(MouseEventArgs e, int albumId)
+    {
+        Navigation.NavigateTo($"/update-album/{albumId}");
+    }
+
+    public class AlbumSummaryDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public IList<Photo> Photos { get; set; } = new List<Photo>();
+        public int UserId { get; set; }
+    }
+
+    public class Photo
+    {
+        public int Id { get; set; }
+        public string Url { get; set; } = string.Empty;
+    }
+}
