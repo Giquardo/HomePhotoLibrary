@@ -4,7 +4,7 @@ services:
   backend:
     image: backend_dev:latest
     build:
-      context: ./Backend_dev
+      context: ./PhotoAlbumApi
       dockerfile: Dockerfile
     ports:
       - "8080:80"
@@ -17,7 +17,7 @@ services:
   blazorapp:
     image: photoalbumblazor:latest
     build:
-      context: ./BlazorApp
+      context: ./PhotoAlbumBlazor
       dockerfile: Dockerfile
     ports:
       - "5000:80"
