@@ -70,16 +70,12 @@ public class Program
         // Configure API versioning
         builder.Services.AddApiVersioning(config =>
         {
-            // Set the default API version to 1.0
             config.DefaultApiVersion = new ApiVersion(1, 0);
 
-            // Assume the default version when unspecified
             config.AssumeDefaultVersionWhenUnspecified = true;
 
-            // Report API versions in response headers
             config.ReportApiVersions = true;
 
-            // Use URL segment to read the API version
             config.ApiVersionReader = new UrlSegmentApiVersionReader();
         });
 
@@ -120,7 +116,7 @@ public class Program
             {
                 Description = @"JWT Authorization header using the Bearer scheme." + "\r\n\r\n" +
                               "Enter 'Bearer' [space] and then your token in the text input below." + "\r\n\r\n" +
-                              "Example: 'Bearer 12345abcdef'" + "\r\n\r\n",
+                              ": 'Bearer 12345abcdef'" + "\r\n\r\n",
                 Name = "Authorization",
                 In = ParameterLocation.Header,
                 Type = SecuritySchemeType.ApiKey,
@@ -152,7 +148,9 @@ public class Program
             c.OperationFilter<FileUploadOperationFilter>();
         });
 
+
         var app = builder.Build();
+
 
         app.UseAuthentication(); // Enable authentication
         app.UseAuthorization(); // Enable authorization
