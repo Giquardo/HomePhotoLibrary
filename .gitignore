@@ -7,6 +7,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+PhotoAlbumApi/appsettings.json
+
+*.env
+
 # User-specific files
 *.rsuser
 *.suo
