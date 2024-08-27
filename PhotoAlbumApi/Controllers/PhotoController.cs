@@ -65,7 +65,7 @@ namespace PhotoAlbumApi.Controllers
                     if (photos == null)
                     {
                         _loggingService.LogWarning("No photos found");
-                        return StatusCode(StatusCodes.Status404NotFound);
+                        return NotFound("No photos found");
                     }
                     photoDtos = _mapper.Map<IEnumerable<PhotoDisplayDto>>(photos);
 
@@ -76,12 +76,12 @@ namespace PhotoAlbumApi.Controllers
                 }
 
                 _loggingService.LogInformation($"Successfully fetched all photos for user {userId}");
-                return StatusCode(StatusCodes.Status200OK, photoDtos);
+                return Ok(photoDtos);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return Unauthorized(ex.Message);
             }
         }
 
@@ -99,7 +99,7 @@ namespace PhotoAlbumApi.Controllers
                     if (photo == null)
                     {
                         _loggingService.LogWarning($"Photo with ID: {id} not found for user {userId}");
-                        return StatusCode(StatusCodes.Status404NotFound);
+                        return NotFound();
                     }
                     photoDto = _mapper.Map<PhotoDisplayDto>(photo);
 
@@ -109,12 +109,12 @@ namespace PhotoAlbumApi.Controllers
                     _cache.Set(cacheKey, photoDto, cacheEntryOptions);
                     _loggingService.LogInformation($"Successfully fetched photo with ID: {id} for user {userId}");
                 }
-                return StatusCode(StatusCodes.Status200OK, photoDto);
+                return Ok(photoDto);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return Unauthorized(ex.Message);
             }
         }
 
@@ -147,17 +147,17 @@ namespace PhotoAlbumApi.Controllers
             catch (InvalidOperationException ex)
             {
                 _loggingService.LogError(ex, "Error uploading photo");
-                return StatusCode(StatusCodes.Status409Conflict, new { message = ex.Message });
+                return Conflict(new { message = ex.Message });
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status401Unauthorized, new { message = ex.Message });
+                return Unauthorized(ex.Message);
             }
             catch (Exception ex)
             {
                 _loggingService.LogError(ex, "An unexpected error occurred while uploading the photo");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred. Please try again later." });
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred. Please try again later.");
             }
         }
 
@@ -190,17 +190,17 @@ namespace PhotoAlbumApi.Controllers
             catch (InvalidOperationException ex)
             {
                 _loggingService.LogError(ex, "Error adding photo");
-                return StatusCode(StatusCodes.Status409Conflict, new { message = ex.Message });
+                return Conflict(new { message = ex.Message });
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status401Unauthorized, new { message = ex.Message });
+                return Unauthorized(ex.Message);
             }
             catch (Exception ex)
             {
                 _loggingService.LogError(ex, "An unexpected error occurred while adding the photo");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred. Please try again later." });
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred. Please try again later.");
             }
         }
 
@@ -275,7 +275,7 @@ namespace PhotoAlbumApi.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return BadRequest(ex.Message);
             }
         }
 
@@ -305,12 +305,12 @@ namespace PhotoAlbumApi.Controllers
                 _cache.Remove(cacheKey);
                 _loggingService.LogInformation($"Cache invalidated for all photos for user {userId}");
 
-                return NoContent();
+                return Ok("Photo deleted successfully");
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return BadRequest(ex.Message);
             }
         }
 
@@ -335,18 +335,18 @@ namespace PhotoAlbumApi.Controllers
                     _loggingService.LogInformation($"Cache invalidated for all photos for user {userId}");
 
                     var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(photo);
-                    return StatusCode(StatusCodes.Status200OK, photoDisplayDto);
+                    return Ok(photoDisplayDto);
                 }
                 else
                 {
                     _loggingService.LogWarning($"Photo with ID: {id} not found or not deleted for user {userId}");
-                    return StatusCode(StatusCodes.Status404NotFound, new { message = "Photo not found or not deleted", photoId = id });
+                    return NotFound(new { message = "Photo not found or not deleted", photoId = id });
                 }
             }
             catch (UnauthorizedAccessException ex)
             {
                 _loggingService.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status400BadRequest, ex.Message);
+                return Unauthorized(ex.Message);
             }
         }
     }
