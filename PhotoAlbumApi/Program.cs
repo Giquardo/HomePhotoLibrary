@@ -14,12 +14,26 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using PhotoAlbumApi.Swagger;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Configure Kestrel to use HTTP/2 for gRPC on port 3001 and HTTP/1.1 for the rest on port 3000
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ListenLocalhost(3000, listenOptions =>
+            {
+                listenOptions.Protocols = HttpProtocols.Http1;
+            });
+            options.ListenLocalhost(3001, listenOptions =>
+            {
+                listenOptions.Protocols = HttpProtocols.Http2;
+            });
+        });
 
         // Configure Serilog
         Log.Logger = new LoggerConfiguration()
@@ -71,11 +85,8 @@ public class Program
         builder.Services.AddApiVersioning(config =>
         {
             config.DefaultApiVersion = new ApiVersion(1, 0);
-
             config.AssumeDefaultVersionWhenUnspecified = true;
-
             config.ReportApiVersions = true;
-
             config.ApiVersionReader = new UrlSegmentApiVersionReader();
         });
 
@@ -148,9 +159,11 @@ public class Program
             c.OperationFilter<FileUploadOperationFilter>();
         });
 
+        // Add gRPC services
+        builder.Services.AddGrpc();
+        builder.Services.AddScoped<IGrpcPhotoRepository, GrpcPhotoRepository>();
 
         var app = builder.Build();
-
 
         app.UseAuthentication(); // Enable authentication
         app.UseAuthorization(); // Enable authorization
@@ -159,6 +172,9 @@ public class Program
 
         // Map the controllers
         app.MapControllers();
+
+        // Map gRPC services
+        app.MapGrpcService<PhotoServiceImpl>().RequireHost("localhost:3001");
 
         // Enable middleware to serve generated Swagger as a JSON endpoint
         app.UseSwagger();

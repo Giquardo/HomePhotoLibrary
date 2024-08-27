@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+option csharp_namespace = "PhotoAlbumApi.Proto";
+
+service PhotoService {
+  rpc GetPhoto (GetPhotoRequest) returns (GetPhotoResponse);
+  rpc AddPhoto (AddPhotoRequest) returns (AddPhotoResponse);
+  rpc UpdatePhoto (UpdatePhotoRequest) returns (UpdatePhotoResponse);
+  rpc SoftDeletePhoto (SoftDeletePhotoRequest) returns (SoftDeletePhotoResponse);
+}
+
+message GetPhotoRequest {
+  int32 id = 1;
+}
+
+message GetPhotoResponse {
+  int32 id = 1;
+  int32 albumId = 2;
+  string title = 3;
+  string description = 4;
+  string url = 5;
+  string extension = 6;
+}
+
+message AddPhotoRequest {
+  int32 albumId = 1;
+  string title = 2;
+  string description = 3;
+  string url = 4;
+}
+
+message AddPhotoResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdatePhotoRequest {
+  int32 id = 1;
+  int32 albumId = 2;
+  string title = 3;
+  string description = 4;
+}
+
+message UpdatePhotoResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SoftDeletePhotoRequest {
+  int32 id = 1;
+}
+
+message SoftDeletePhotoResponse {
+  bool success = 1;
+  string message = 2;
+}

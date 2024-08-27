@@ -29,6 +29,14 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Swashbuckle.Aspnetcore" Version="6.7.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
+    <!-- Add gRPC packages -->
+    <PackageReference Include="Grpc.AspNetCore" Version="2.41.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.41.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Add the Protobuf file -->
+    <Protobuf Include="Protos\photo.proto" GrpcServices="Server" />
   </ItemGroup>
 
 </Project>
