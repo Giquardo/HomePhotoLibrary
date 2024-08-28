@@ -14,6 +14,7 @@
     private string imageUrl;
     private IBrowserFile file;
     private string errorMessage;
+    private const long MaxFileSize = 10485760; // 10 MB
 
     private async Task HandleValidSubmit()
     {
@@ -33,24 +34,26 @@
             content.Add(new StringContent(newPhoto.Title), "title");
             content.Add(new StringContent(newPhoto.Description), "description");
 
+            HttpResponseMessage response;
+
             if (!string.IsNullOrEmpty(imageUrl))
             {
                 content.Add(new StringContent(imageUrl), "url");
+                response = await Http.PostAsync("api/photos", content);
             }
             else if (file != null)
             {
-                var fileContent = new StreamContent(file.OpenReadStream());
+                var fileContent = new StreamContent(file.OpenReadStream(MaxFileSize));
                 fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
                 content.Add(fileContent, "file", file.Name);
+                response = await Http.PostAsync("api/photos/upload", content);
             }
             else
             {
                 throw new ArgumentException("Either a URL or a file must be provided.");
             }
 
-            var response = await Http.PostAsync("api/photos", content);
             response.EnsureSuccessStatusCode();
-
             Navigation.NavigateTo($"/album/{albumId}");
         }
         catch (Exception ex)
@@ -61,7 +64,17 @@
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
     {
-        file = e.File;
+        var selectedFile = e.File;
+        if (selectedFile.Size > MaxFileSize)
+        {
+            errorMessage = $"File size exceeds the maximum limit of {MaxFileSize / 1048576} MB.";
+            file = null;
+        }
+        else
+        {
+            file = selectedFile;
+            errorMessage = null;
+        }
     }
 
     public class Photo

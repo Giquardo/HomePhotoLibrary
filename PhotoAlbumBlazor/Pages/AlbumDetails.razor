@@ -51,6 +51,21 @@
         public string Description { get; set; } = string.Empty;
         public DateTime DateUploaded { get; set; }
         public string Extension { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+
+        // Method to get the correct image URL
+        public string GetImageUrl()
+        {
+            // Prioritize the Url property if it contains an actual URL
+            if (!string.IsNullOrEmpty(Url))
+            {
+                return Url;
+            }
+
+            // Remove 'Data\Files\' from the FilePath and use the symbolic link
+            var relativePath = FilePath.Replace(@"Data\Files\", string.Empty);
+            return $"/images/{relativePath}";
+        }
     }
 }
 
@@ -79,7 +94,7 @@ else
                 <div class="photo-item">
                     <div class="photo-details">
                         <p>@photo.Id</p>
-                        <img src="@photo.Url" alt="Photo" class="photo-thumbnail" />
+                        <img src="@photo.GetImageUrl()" alt="Photo" class="photo-thumbnail" />
                         <p>@photo.Title</p>
                         <p>@photo.Description</p>
                         <p>@photo.DateUploaded</p>
