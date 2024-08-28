@@ -168,8 +168,8 @@ public class Program
         {
             options.AddDefaultPolicy(builder =>
             {
-                builder.AllowAnyOrigin()
-                       .AllowAnyMethod()
+                builder.WithOrigins("http://localhost:3000", "https://localhost:3001", "http://localhost:5246")
+                       .WithMethods("GET", "POST", "PUT", "DELETE")
                        .AllowAnyHeader();
             });
         });
