@@ -139,6 +139,10 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Successfully uploaded a new photo with ID: {addedPhoto.Id} for user {userId}");
 
                 var cacheKey = $"GetPhotos_{userId}";
+                var cacheKeyAlbum = $"GetPhotos_{userId}_{addedPhoto.AlbumId}";
+                _cache.Remove($"GetAlbumsV1_{userId}");
+                _cache.Remove($"GetAlbumV1_{userId}_{addedPhoto.AlbumId}");
+                _cache.Remove(cacheKeyAlbum);
                 _cache.Remove(cacheKey);
 
                 var photoDisplayDto = _mapper.Map<PhotoDisplayDto>(addedPhoto);

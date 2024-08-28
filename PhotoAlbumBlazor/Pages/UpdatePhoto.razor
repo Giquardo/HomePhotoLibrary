@@ -96,7 +96,7 @@
         }
     }
 
-    private async Task HandleDelete()
+        private async Task HandleDelete()
     {
         try
         {
@@ -106,13 +106,13 @@
                 Navigation.NavigateTo("/login");
                 return;
             }
-
+    
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
+    
             var response = await Http.DeleteAsync($"api/photos/{PhotoId}");
             response.EnsureSuccessStatusCode();
-
-            Navigation.NavigateTo("/photos");
+    
+            Navigation.NavigateTo($"/album/{updatedPhoto.AlbumId}"); // Navigate to the album page
         }
         catch (Exception ex)
         {
