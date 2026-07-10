@@ -12,6 +12,7 @@ public interface IUserRepository
     Task<User> CreateUserAsync(User user);
     Task<User> UpdateUserAsync(int id, User user);
     Task DeleteUserAsync(int id);
+    Task SaveChangesAsync();
 }
 
 public class UserRepository : IUserRepository
@@ -73,5 +74,10 @@ public class UserRepository : IUserRepository
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task SaveChangesAsync()
+    {
+        await _context.SaveChangesAsync();
     }
 }

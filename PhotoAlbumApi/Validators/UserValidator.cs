@@ -17,8 +17,10 @@ public class UserValidator : AbstractValidator<UserDto>
 
         RuleFor(user => user.Password)
             .NotEmpty().WithMessage("Password is required.")
-            .MinimumLength(6).WithMessage("Password must be at least 6 characters long.")
-            .MaximumLength(50).WithMessage("Password must be at most 50 characters long.");
+            .MinimumLength(12).WithMessage("Password must be at least 12 characters long.")
+            // BCrypt only considers the first 72 bytes of input; cap here so long
+            // passwords fail validation instead of being silently truncated.
+            .MaximumLength(72).WithMessage("Password must be at most 72 characters long.");
 
         RuleFor(user => user.IsAdmin)
             .NotNull().WithMessage("IsAdmin is required.")

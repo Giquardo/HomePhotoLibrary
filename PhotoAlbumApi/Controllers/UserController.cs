@@ -6,6 +6,7 @@ using PhotoAlbumApi.DTOs;
 using Microsoft.Extensions.Caching.Memory;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PhotoAlbumApi.Controllers;
 
@@ -29,12 +30,14 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginModel loginModel)
     {
         _loggingService.LogInformation($"Logging in user: {loginModel.Username}");
         var user = await _service.AuthenticateUserAsync(loginModel.Username, loginModel.Password);
         if (user == null)
         {
+            _loggingService.LogWarning($"Failed login attempt for user: {loginModel.Username}");
             return StatusCode(StatusCodes.Status401Unauthorized, new { message = "Invalid username or password" });
         }
         _loggingService.LogInformation($"Successfully logged in user: {loginModel.Username}");

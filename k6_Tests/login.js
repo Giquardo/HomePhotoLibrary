@@ -3,9 +3,11 @@ import { check } from 'k6';
 
 export default function () {
     const url = 'http://localhost:3000/api/users/login'; // Replace with your login endpoint
+    // Credentials come from the ADMIN_USERNAME/ADMIN_PASSWORD bootstrap; there is no
+    // seeded test user anymore. Run with: k6 run -e ADMIN_USERNAME=... -e ADMIN_PASSWORD=... login.js
     const payload = JSON.stringify({
-        Username: 'giquardo',
-        Password: '123',
+        Username: __ENV.ADMIN_USERNAME || 'admin',
+        Password: __ENV.ADMIN_PASSWORD || 'changeme',
     });
 
     const params = {

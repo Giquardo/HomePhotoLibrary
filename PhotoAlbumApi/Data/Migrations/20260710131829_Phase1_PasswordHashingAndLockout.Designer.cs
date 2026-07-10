@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PhotoAlbumApi.Data;
 
@@ -10,9 +11,11 @@ using PhotoAlbumApi.Data;
 namespace Backend_dev.Data.Migrations
 {
     [DbContext(typeof(PhotoAlbumContext))]
-    partial class PhotoAlbumContextModelSnapshot : ModelSnapshot
+    [Migration("20260710131829_Phase1_PasswordHashingAndLockout")]
+    partial class Phase1_PasswordHashingAndLockout
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

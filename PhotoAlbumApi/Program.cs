@@ -15,6 +15,9 @@ using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using PhotoAlbumApi.Swagger;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using PhotoAlbumApi.Models;
 
 public class Program
 {
@@ -50,6 +53,13 @@ public class Program
             throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
         }
         builder.Services.AddDbContext<PhotoAlbumContext>(options => options.UseMySQL(connectionString));
+
+        // JWT signing key must come from a runtime secret and be strong enough for HS256.
+        var jwtKey = builder.Configuration["Jwt:Key"];
+        if (string.IsNullOrEmpty(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+        {
+            throw new InvalidOperationException("Jwt:Key must be set via configuration/environment variable and be at least 32 bytes (256 bits) long.");
+        }
 
         // Register repositories
         builder.Services.AddTransient<IAlbumRepository, AlbumRepository>();
@@ -106,7 +116,7 @@ public class Program
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = builder.Configuration["Jwt:Issuer"],
                 ValidAudience = builder.Configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
             };
         });
 
@@ -114,6 +124,24 @@ public class Program
         builder.Services.AddAuthorization(options =>
         {
             options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+        });
+
+        // Rate-limit the login endpoint per client IP to slow down brute-force attempts.
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                }));
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await context.HttpContext.Response.WriteAsync("Too many login attempts. Please try again later.", cancellationToken);
+            };
         });
 
         // Configure the Swagger generator
@@ -176,11 +204,42 @@ public class Program
 
         var app = builder.Build();
 
+        // Bootstrap a single admin account from ADMIN_USERNAME/ADMIN_PASSWORD if the
+        // Users table is empty. No open registration exists, so refuse to start rather
+        // than come up with zero usable accounts.
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<PhotoAlbumContext>();
+            if (!context.Users.Any())
+            {
+                var adminUsername = builder.Configuration["ADMIN_USERNAME"];
+                var adminPassword = builder.Configuration["ADMIN_PASSWORD"];
+                if (string.IsNullOrWhiteSpace(adminUsername) || string.IsNullOrWhiteSpace(adminPassword))
+                {
+                    throw new InvalidOperationException("No users exist and ADMIN_USERNAME/ADMIN_PASSWORD are not set; cannot bootstrap an admin account.");
+                }
+                if (adminPassword.Length < 12)
+                {
+                    throw new InvalidOperationException("ADMIN_PASSWORD must be at least 12 characters long.");
+                }
+                context.Users.Add(new User
+                {
+                    Username = adminUsername,
+                    Email = $"{adminUsername}@localhost", // not surfaced anywhere; ADMIN_EMAIL isn't part of the bootstrap contract
+                    Password = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                    IsAdmin = true
+                });
+                context.SaveChanges();
+            }
+        }
+
         app.UseAuthentication(); // Enable authentication
         app.UseAuthorization(); // Enable authorization
 
         // Enable CORS
         app.UseCors();
+
+        app.UseRateLimiter();
 
         app.MapGet("/", () => Results.Redirect("/swagger"));
 

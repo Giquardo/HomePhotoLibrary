@@ -172,9 +172,9 @@ Content-Type: application/json
 {
   "username": "Giquardo",
   "email": "giquardo@gmail.com",
-  "password": "123",
+  "password": "ChangeMe12345!",
   "IsAdmin": true
-} 
+}
 
 ###
 
@@ -185,9 +185,9 @@ Content-Type: application/json
 {
   "username": "Giquardo",
   "email": "giquardo@telenet.be",
-  "password": "123",
+  "password": "ChangeMe12345!",
   "IsAdmin": true
-} 
+}
 
 ###
 

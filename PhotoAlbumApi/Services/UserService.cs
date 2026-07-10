@@ -14,6 +14,13 @@ public interface IUserService
 
 public class UserService : IUserService
 {
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
+    // Verified against on every "user not found" path so that lookup timing doesn't
+    // reveal whether a username exists.
+    private static readonly string DummyPasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+
     private readonly IUserRepository _userRepository;
     private readonly IAuthenticationService _authenticationService;
 
@@ -27,9 +34,34 @@ public class UserService : IUserService
     {
         var user = await _userRepository.GetUserByUsernameAsync(username);
 
-        if (user == null || user.Password != password)
+        if (user == null)
+        {
+            BCrypt.Net.BCrypt.Verify(password, DummyPasswordHash);
+            return null;
+        }
+
+        if (user.LockoutEndUtc.HasValue && user.LockoutEndUtc.Value > DateTime.UtcNow)
         {
             return null;
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
+        {
+            user.AccessFailedCount++;
+            if (user.AccessFailedCount >= MaxFailedAttempts)
+            {
+                user.LockoutEndUtc = DateTime.UtcNow.Add(LockoutDuration);
+                user.AccessFailedCount = 0;
+            }
+            await _userRepository.SaveChangesAsync();
+            return null;
+        }
+
+        if (user.AccessFailedCount != 0 || user.LockoutEndUtc.HasValue)
+        {
+            user.AccessFailedCount = 0;
+            user.LockoutEndUtc = null;
+            await _userRepository.SaveChangesAsync();
         }
 
         return user;
@@ -47,11 +79,13 @@ public class UserService : IUserService
 
     public async Task<User> CreateUserAsync(User user)
     {
+        user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
         return await _userRepository.CreateUserAsync(user);
     }
 
     public async Task<User> UpdateUserAsync(int id, User user)
     {
+        user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
         return await _userRepository.UpdateUserAsync(id, user);
     }
 

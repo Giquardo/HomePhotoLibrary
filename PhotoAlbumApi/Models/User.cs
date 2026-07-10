@@ -16,10 +16,14 @@ namespace PhotoAlbumApi.Models
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(50)]
+        [MaxLength(255)]
         public string Password { get; set; } = string.Empty;
 
         public bool IsAdmin { get; set; }
+
+        public int AccessFailedCount { get; set; } = 0;
+
+        public DateTime? LockoutEndUtc { get; set; }
 
         // Navigation properties
         public ICollection<Album> Albums { get; set; } = new List<Album>();
