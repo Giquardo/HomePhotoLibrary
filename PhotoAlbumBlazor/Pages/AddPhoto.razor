@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
+@inject IJSRuntime JS
 @using Blazored.LocalStorage
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Net.Http.Json
@@ -14,7 +15,16 @@
     private string imageUrl;
     private IBrowserFile file;
     private string errorMessage;
+    private ElementReference dropZoneRef;
     private const long MaxFileSize = 10485760; // 10 MB
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("dragDropInterop.register", dropZoneRef, "file");
+        }
+    }
 
     private async Task HandleValidSubmit()
     {
@@ -107,7 +117,14 @@
 
     <div class="form-group">
         <label for="file">Upload File</label>
-        <InputFile id="file" class="form-control" OnChange="HandleFileSelected" />
+        <div class="drop-zone" @ref="dropZoneRef">
+            <InputFile id="file" class="form-control" OnChange="HandleFileSelected" />
+            <p class="drop-zone-hint">or drag and drop an image here</p>
+            @if (file != null)
+            {
+                <p class="selected-file">Selected: @file.Name</p>
+            }
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -121,6 +138,30 @@
 <style>
     .form-group {
         margin-bottom: 15px;
+    }
+
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+        transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .drop-zone.drag-over {
+        background-color: #e9f5ff;
+        border-color: #007bff;
+    }
+
+    .drop-zone-hint {
+        margin: 8px 0 0;
+        color: #777;
+        font-size: 0.9rem;
+    }
+
+    .selected-file {
+        margin: 8px 0 0;
+        font-weight: bold;
     }
 
     .btn {

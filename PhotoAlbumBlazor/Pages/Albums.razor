@@ -6,13 +6,16 @@
 
 <h3>Albums</h3>
 
-<button @onclick="NavigateToAddAlbum" class="add-album-button">Add Album</button>
+<div class="albums-toolbar">
+    <button @onclick="NavigateToAddAlbum" class="add-album-button">Add Album</button>
+    <input class="search-box" type="text" placeholder="Search albums..." value="@searchText" @oninput="OnSearchChanged" />
+</div>
 
 @if (albums == null)
 {
     <p>Loading...</p>
 }
-else if (!albums.Any())
+else if (!FilteredAlbums.Any())
 {
     <p>No albums found.</p>
 }
@@ -34,7 +37,7 @@ else
                     <p>Number of Photos</p>
                 </div>
             </div>
-            @foreach (var album in albums.Select((value, index) => new { value, index }))
+            @foreach (var album in FilteredAlbums.Select((value, index) => new { value, index }))
             {
                 <div class="album-row @(album.index % 2 == 0 ? "grey-background" : "white-background")" @onclick="() => NavigateToAlbum(album.value.Id)">
                     <div class="album-column id-column">
@@ -58,7 +61,7 @@ else
                     <p>Actions</p>
                 </div>
             </div>
-            @foreach (var album in albums.Select((value, index) => new { value, index }))
+            @foreach (var album in FilteredAlbums.Select((value, index) => new { value, index }))
             {
                 <div class="album-row @(album.index % 2 == 0 ? "grey-background" : "white-background")">
                     <div class="album-column">
@@ -71,6 +74,20 @@ else
 }
 
 <style>
+    .albums-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .search-box {
+        max-width: 300px;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
     .add-album-button {
         margin-bottom: 20px;
         padding: 10px 20px;
@@ -171,6 +188,21 @@ else
 
 @code {
     private List<AlbumSummaryDto> albums;
+    private string searchText = string.Empty;
+
+    private List<AlbumSummaryDto> FilteredAlbums =>
+        albums == null
+            ? new List<AlbumSummaryDto>()
+            : albums.Where(a =>
+                string.IsNullOrWhiteSpace(searchText) ||
+                a.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                a.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+              .ToList();
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? string.Empty;
+    }
 
     protected override async Task OnInitializedAsync()
     {
