@@ -58,7 +58,10 @@ public class UserRepository : IUserRepository
         if (existingUser != null)
         {
             existingUser.Username = user.Username;
-            existingUser.Password = user.Password;
+            if (!string.IsNullOrEmpty(user.Password))
+            {
+                existingUser.Password = user.Password;
+            }
             existingUser.Email = user.Email;
             existingUser.IsAdmin = user.IsAdmin;
             await _context.SaveChangesAsync();

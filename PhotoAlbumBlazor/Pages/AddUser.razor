@@ -1,0 +1,122 @@
+@page "/add-user"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<h3>Add New User</h3>
+
+<EditForm Model="newUser" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="username">Username</label>
+        <InputText id="username" class="form-control" @bind-Value="newUser.Username" />
+    </div>
+
+    <div class="form-group">
+        <label for="email">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="newUser.Email" />
+    </div>
+
+    <div class="form-group">
+        <label for="password">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="newUser.Password" />
+        <p class="hint">At least 12 characters.</p>
+    </div>
+
+    <div class="form-group checkbox-group">
+        <label>
+            <InputCheckbox @bind-Value="newUser.IsAdmin" />
+            Admin
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add User</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .checkbox-group label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .hint {
+        margin: 4px 0 0;
+        color: #777;
+        font-size: 0.85rem;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        background-color: #0056b3;
+    }
+
+    .alert {
+        margin-top: 20px;
+    }
+</style>
+
+@code {
+    private UserFormModel newUser = new();
+    private string? errorMessage;
+
+    private async Task HandleValidSubmit()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var response = await Http.PostAsJsonAsync("api/users", newUser);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/users");
+        }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        else
+        {
+            errorMessage = $"Failed to add user ({(int)response.StatusCode}).";
+        }
+    }
+
+    public class UserFormModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; } = false;
+    }
+}

@@ -1,0 +1,173 @@
+@page "/users"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<h3>Users</h3>
+
+<button @onclick="NavigateToAddUser" class="add-user-button">Add User</button>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (users == null)
+{
+    <p>Loading...</p>
+}
+else if (!users.Any())
+{
+    <p>No users found.</p>
+}
+else
+{
+    <div class="users-wrapper">
+        <div class="user-header">
+            <div class="user-column id-column"><p>ID</p></div>
+            <div class="user-column"><p>Username</p></div>
+            <div class="user-column"><p>Email</p></div>
+            <div class="user-column"><p>Admin</p></div>
+            <div class="user-column"><p>Actions</p></div>
+        </div>
+        @foreach (var user in users.Select((value, index) => new { value, index }))
+        {
+            <div class="user-row @(user.index % 2 == 0 ? "grey-background" : "white-background")">
+                <div class="user-column id-column"><p>@user.value.Id</p></div>
+                <div class="user-column"><p>@user.value.Username</p></div>
+                <div class="user-column"><p>@user.value.Email</p></div>
+                <div class="user-column"><p>@(user.value.IsAdmin ? "Yes" : "No")</p></div>
+                <div class="user-column">
+                    <button @onclick="() => NavigateToUpdateUser(user.value.Id)" class="update-user-button">Update</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<style>
+    .add-user-button {
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .add-user-button:hover {
+        background-color: #28a745;
+    }
+
+    .update-user-button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        padding: 8px 16px;
+    }
+
+    .update-user-button:hover {
+        background-color: #218838;
+    }
+
+    .users-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .user-header, .user-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .user-header {
+        font-weight: bold;
+        background-color: #d3d3d3;
+    }
+
+    .user-column {
+        flex: 1;
+        padding: 0 10px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .id-column {
+        flex: 0 0 64px;
+    }
+
+    .grey-background {
+        background-color: #f0f0f0;
+    }
+
+    .white-background {
+        background-color: #ffffff;
+    }
+
+    .alert {
+        margin-top: 20px;
+    }
+</style>
+
+@code {
+    private List<UserDisplayDto>? users;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        if (!JwtClaimsHelper.IsAdmin(token))
+        {
+            Navigation.NavigateTo("/albums");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<UserDisplayDto>>("api/users");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void NavigateToAddUser()
+    {
+        Navigation.NavigateTo("/add-user");
+    }
+
+    private void NavigateToUpdateUser(int userId)
+    {
+        Navigation.NavigateTo($"/update-user/{userId}");
+    }
+
+    public class UserDisplayDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; }
+    }
+}

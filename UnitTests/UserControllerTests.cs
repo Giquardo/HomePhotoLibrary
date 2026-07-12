@@ -330,25 +330,15 @@ namespace PhotoAlbumApi.Tests
         {
             // Arrange
             var invalidUserId = 999;
-            var userDto = new UserDto
+            var userDto = new UserUpdateDto
             {
                 Username = "testuser",
                 Email = "testuser@example.com",
-                Password = "password123",
+                Password = "password12345",
                 IsAdmin = true
             };
-            var user = new User
-            {
-                Id = invalidUserId,
-                Username = "testuser",
-                Email = "testuser@example.com",
-                Password = "password123",
-                IsAdmin = true,
-                Albums = new List<Album>()
-            };
 
-            _mockMapper.Setup(m => m.Map<User>(userDto)).Returns(user);
-            _mockUserService.Setup(s => s.UpdateUserAsync(invalidUserId, user)).ReturnsAsync((User)null);
+            _mockUserService.Setup(s => s.UpdateUserAsync(invalidUserId, It.IsAny<User>())).ReturnsAsync((User)null);
 
             // Act
             var result = await _controller.UpdateUser(invalidUserId, userDto);
@@ -363,7 +353,7 @@ namespace PhotoAlbumApi.Tests
         {
             // Arrange
             var validUserId = 1;
-            var invalidUserDto = new UserDto
+            var invalidUserDto = new UserUpdateDto
             {
                 Username = "", // Invalid username
                 Email = "invalid-email", // Invalid email
@@ -388,21 +378,12 @@ namespace PhotoAlbumApi.Tests
         {
             // Arrange
             var validUserId = 1;
-            var userDto = new UserDto
+            var userDto = new UserUpdateDto
             {
                 Username = "testuser",
                 Email = "testuser@example.com",
-                Password = "password123",
+                Password = "password12345",
                 IsAdmin = true
-            };
-            var user = new User
-            {
-                Id = validUserId,
-                Username = "testuser",
-                Email = "testuser@example.com",
-                Password = "password123",
-                IsAdmin = true,
-                Albums = new List<Album>()
             };
             var updatedUser = new User
             {
@@ -423,8 +404,7 @@ namespace PhotoAlbumApi.Tests
                 Albums = albumDtos
             };
 
-            _mockMapper.Setup(m => m.Map<User>(userDto)).Returns(user);
-            _mockUserService.Setup(s => s.UpdateUserAsync(validUserId, user)).ReturnsAsync(updatedUser);
+            _mockUserService.Setup(s => s.UpdateUserAsync(validUserId, It.IsAny<User>())).ReturnsAsync(updatedUser);
             _mockMapper.Setup(m => m.Map<ICollection<AlbumDto>>(updatedUser.Albums)).Returns(albumDtos);
             _mockMapper.Setup(m => m.Map<UserDisplayDto>(updatedUser)).Returns(userDisplayDto);
 

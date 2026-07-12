@@ -1,4 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">PhotoAlbumBlazor</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -24,17 +29,52 @@
                 <span class="bi bi-image" aria-hidden="true"></span> Photos
             </NavLink>
         </div>
+        @if (isAdmin)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="users">
+                    <span class="bi bi-people" aria-hidden="true"></span> Users
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
+    private bool isAdmin;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAuthStateAsync();
+        // NavMenu lives in the persistent layout and isn't re-created on
+        // navigation, so OnInitializedAsync alone would only ever see the
+        // pre-login state. Re-check whenever the route changes (e.g. right
+        // after logging in) instead of requiring a full page reload.
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        await RefreshAuthStateAsync();
+        StateHasChanged();
+    }
+
+    private async Task RefreshAuthStateAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        isAdmin = PhotoAlbumBlazor.Services.JwtClaimsHelper.IsAdmin(token);
+    }
 
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
     }
 
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }

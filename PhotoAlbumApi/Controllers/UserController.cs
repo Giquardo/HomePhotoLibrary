@@ -104,20 +104,30 @@ public class UserController : ControllerBase
         _loggingService.LogInformation($"Creating user: {userDto.Username}");
         var user = _mapper.Map<User>(userDto);
         var createdUser = await _service.CreateUserAsync(user);
+        _cache.Remove("AllUsers");
         var userDisplayDto = _mapper.Map<UserDisplayDto>(createdUser);
         return StatusCode(StatusCodes.Status201Created, userDisplayDto);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] UserDto userDto)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto userDto)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest("Invalid user data");
         }
         _loggingService.LogInformation($"Updating user with ID: {id}");
-        var user = _mapper.Map<User>(userDto);
+        // Built by hand rather than via AutoMapper: an unmapped/blank Password
+        // must stay null/empty here so UserService/UserRepository know to keep
+        // the existing hash instead of overwriting it.
+        var user = new User
+        {
+            Username = userDto.Username,
+            Email = userDto.Email,
+            Password = userDto.Password ?? string.Empty,
+            IsAdmin = userDto.IsAdmin
+        };
         var updatedUser = await _service.UpdateUserAsync(id, user);
         if (updatedUser == null)
         {
@@ -125,6 +135,7 @@ public class UserController : ControllerBase
             return StatusCode(StatusCodes.Status404NotFound);
         }
         _cache.Remove($"User_{id}");
+        _cache.Remove("AllUsers");
         var userDisplayDto = _mapper.Map<UserDisplayDto>(updatedUser);
         return StatusCode(StatusCodes.Status200OK, userDisplayDto);
     }
@@ -144,6 +155,7 @@ public class UserController : ControllerBase
 
         await _service.DeleteUserAsync(id);
         _cache.Remove($"User_{id}");
+        _cache.Remove("AllUsers");
 
         return StatusCode(StatusCodes.Status204NoContent);
     }

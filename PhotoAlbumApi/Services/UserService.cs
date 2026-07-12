@@ -85,7 +85,12 @@ public class UserService : IUserService
 
     public async Task<User> UpdateUserAsync(int id, User user)
     {
-        user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+        // Empty/null means "keep the existing password" - only hash and
+        // overwrite when a new one was actually supplied.
+        if (!string.IsNullOrEmpty(user.Password))
+        {
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+        }
         return await _userRepository.UpdateUserAsync(id, user);
     }
 
