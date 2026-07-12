@@ -14,7 +14,6 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using PhotoAlbumApi.Swagger;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using PhotoAlbumApi.Models;
@@ -25,23 +24,11 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Configure Kestrel to use HTTP/2 for gRPC on port 3001 and HTTP/1.1 for the rest on port 3000
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            options.ListenLocalhost(3000, listenOptions =>
-            {
-                listenOptions.Protocols = HttpProtocols.Http1;
-            });
-            options.ListenLocalhost(3001, listenOptions =>
-            {
-                listenOptions.Protocols = HttpProtocols.Http2;
-            });
-        });
-
         // Configure Serilog
+        var logsBasePath = builder.Configuration["Logging:BasePath"] ?? "Logs";
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
-            .WriteTo.File("Logs/serilog.txt", rollingInterval: RollingInterval.Day)
+            .WriteTo.File(Path.Combine(logsBasePath, "serilog.txt"), rollingInterval: RollingInterval.Day)
             .CreateLogger();
 
         builder.Host.UseSerilog();
@@ -71,6 +58,7 @@ public class Program
         builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
         builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
         builder.Services.AddTransient<IUserService, UserService>();
+        builder.Services.AddHttpClient();
 
         // Register FluentValidation
         builder.Services.AddControllers()
@@ -86,7 +74,7 @@ public class Program
         builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
         // Register the custom logging service as a singleton
-        builder.Services.AddSingleton<ILoggingService>(new LoggingService("Logs/custom_log.txt"));
+        builder.Services.AddSingleton<ILoggingService>(new LoggingService(Path.Combine(logsBasePath, "custom_log.txt")));
 
         // Register Memory Cache service
         builder.Services.AddMemoryCache();
@@ -187,18 +175,16 @@ public class Program
             c.OperationFilter<FileUploadOperationFilter>();
         });
 
-        // Add gRPC services
-        builder.Services.AddGrpc();
-        builder.Services.AddScoped<IGrpcPhotoRepository, GrpcPhotoRepository>();
-
         // Configure CORS
+        var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:3000,http://localhost:5246")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         builder.Services.AddCors(options =>
         {
-            options.AddDefaultPolicy(builder =>
+            options.AddDefaultPolicy(policy =>
             {
-                builder.WithOrigins("http://localhost:3000", "https://localhost:3001", "http://localhost:5246")
-                       .WithMethods("GET", "POST", "PUT", "DELETE")
-                       .AllowAnyHeader();
+                policy.WithOrigins(corsOrigins)
+                      .WithMethods("GET", "POST", "PUT", "DELETE")
+                      .AllowAnyHeader();
             });
         });
 
@@ -246,9 +232,6 @@ public class Program
         // Map the controllers
         app.MapControllers();
 
-        // Map gRPC services
-        app.MapGrpcService<PhotoServiceImpl>().RequireHost("localhost:3001");
-
         // Enable middleware to serve generated Swagger as a JSON endpoint
         app.UseSwagger();
 
@@ -258,6 +241,6 @@ public class Program
             c.SwaggerEndpoint("/swagger/v1/swagger.json", "Photo Album API v1.0");
         });
 
-        app.Run("http://localhost:3000");
+        app.Run();
     }
 }
