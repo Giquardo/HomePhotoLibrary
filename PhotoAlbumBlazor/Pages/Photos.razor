@@ -1,0 +1,596 @@
+@page "/photos"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Web
+@using System.Net.Http.Json
+
+@code {
+    private const int PageSize = 12;
+
+    private List<Photo>? photos;
+    private readonly Dictionary<int, string> photoSources = new();
+    private string searchText = string.Empty;
+    private int currentPage = 1;
+    private readonly HashSet<int> selectedPhotoIds = new();
+    private int? confirmingDeleteId;
+    private bool confirmingBulkDelete;
+    private bool isLightboxOpen;
+    private int lightboxIndex;
+    private ElementReference lightboxRef;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            photos = await Http.GetFromJsonAsync<List<Photo>>("api/photos");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+            return;
+        }
+
+        await LoadCurrentPageImagesAsync();
+    }
+
+    private List<Photo> FilteredPhotos =>
+        photos == null
+            ? new List<Photo>()
+            : photos.Where(p =>
+                string.IsNullOrWhiteSpace(searchText) ||
+                p.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+              .ToList();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredPhotos.Count / (double)PageSize));
+
+    private List<Photo> PagedPhotos =>
+        FilteredPhotos.Skip((currentPage - 1) * PageSize).Take(PageSize).ToList();
+
+    private async Task OnSearchChanged(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? string.Empty;
+        currentPage = 1;
+        await LoadCurrentPageImagesAsync();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > TotalPages)
+        {
+            return;
+        }
+        currentPage = page;
+        await LoadCurrentPageImagesAsync();
+    }
+
+    private async Task LoadCurrentPageImagesAsync()
+    {
+        var toLoad = PagedPhotos.Where(p => !photoSources.ContainsKey(p.Id));
+        await Task.WhenAll(toLoad.Select(LoadPhotoImageAsync));
+    }
+
+    private async Task LoadPhotoImageAsync(Photo photo)
+    {
+        if (photoSources.ContainsKey(photo.Id))
+        {
+            return;
+        }
+        try
+        {
+            var response = await Http.GetAsync($"api/photos/download/{photo.Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            photoSources[photo.Id] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch
+        {
+            // Leave unset; the <img> just renders broken for this one photo.
+        }
+    }
+
+    private string GetPhotoSrc(int photoId) => photoSources.TryGetValue(photoId, out var src) ? src : string.Empty;
+
+    private string GetDownloadFilename(Photo photo) => $"{photo.Title.Replace(' ', '_')}{photo.Extension}";
+
+    private void NavigateToUpdatePhoto(int photoId)
+    {
+        Navigation.NavigateTo($"/update-photo/{photoId}");
+    }
+
+    private void NavigateToAlbum(int albumId)
+    {
+        Navigation.NavigateTo($"/album/{albumId}");
+    }
+
+    // --- Single delete: two-stage confirm, no JS dialog needed ---
+    private void RequestDelete(int photoId) => confirmingDeleteId = photoId;
+
+    private void CancelDelete() => confirmingDeleteId = null;
+
+    private async Task ConfirmDelete(int photoId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/photos/{photoId}");
+            response.EnsureSuccessStatusCode();
+
+            var toRemove = photos?.FirstOrDefault(p => p.Id == photoId);
+            if (toRemove != null)
+            {
+                photos!.Remove(toRemove);
+            }
+            photoSources.Remove(photoId);
+            selectedPhotoIds.Remove(photoId);
+            confirmingDeleteId = null;
+
+            if (currentPage > TotalPages)
+            {
+                currentPage = TotalPages;
+            }
+            await LoadCurrentPageImagesAsync();
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    // --- Multi-select / bulk delete ---
+    private bool IsSelected(int photoId) => selectedPhotoIds.Contains(photoId);
+
+    private void ToggleSelect(int photoId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selectedPhotoIds.Add(photoId);
+        }
+        else
+        {
+            selectedPhotoIds.Remove(photoId);
+        }
+    }
+
+    private bool AllFilteredSelected => FilteredPhotos.Count > 0 && FilteredPhotos.All(p => selectedPhotoIds.Contains(p.Id));
+
+    private void ToggleSelectAll(bool isChecked)
+    {
+        if (isChecked)
+        {
+            foreach (var p in FilteredPhotos)
+            {
+                selectedPhotoIds.Add(p.Id);
+            }
+        }
+        else
+        {
+            selectedPhotoIds.Clear();
+        }
+    }
+
+    private void RequestBulkDelete() => confirmingBulkDelete = true;
+    private void CancelBulkDelete() => confirmingBulkDelete = false;
+
+    private async Task ConfirmBulkDelete()
+    {
+        try
+        {
+            var ids = selectedPhotoIds.ToList();
+            await Task.WhenAll(ids.Select(id => Http.DeleteAsync($"api/photos/{id}")));
+
+            if (photos != null)
+            {
+                photos = photos.Where(p => !ids.Contains(p.Id)).ToList();
+            }
+            foreach (var id in ids)
+            {
+                photoSources.Remove(id);
+                selectedPhotoIds.Remove(id);
+            }
+            confirmingBulkDelete = false;
+
+            if (currentPage > TotalPages)
+            {
+                currentPage = TotalPages;
+            }
+            await LoadCurrentPageImagesAsync();
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    // --- Lightbox ---
+    private async Task OpenLightbox(int photoId)
+    {
+        var photos = FilteredPhotos;
+        var index = photos.FindIndex(p => p.Id == photoId);
+        if (index < 0)
+        {
+            return;
+        }
+        lightboxIndex = index;
+        isLightboxOpen = true;
+        await LoadPhotoImageAsync(photos[lightboxIndex]);
+        await lightboxRef.FocusAsync();
+    }
+
+    private void CloseLightbox() => isLightboxOpen = false;
+
+    private Photo? LightboxPhoto
+    {
+        get
+        {
+            var photos = FilteredPhotos;
+            return photos.Count > 0 ? photos[Math.Min(lightboxIndex, photos.Count - 1)] : null;
+        }
+    }
+
+    private async Task LightboxNext()
+    {
+        var photos = FilteredPhotos;
+        if (lightboxIndex < photos.Count - 1)
+        {
+            lightboxIndex++;
+            await LoadPhotoImageAsync(photos[lightboxIndex]);
+        }
+    }
+
+    private async Task LightboxPrev()
+    {
+        var photos = FilteredPhotos;
+        if (lightboxIndex > 0)
+        {
+            lightboxIndex--;
+            await LoadPhotoImageAsync(photos[lightboxIndex]);
+        }
+    }
+
+    private async Task HandleLightboxKeydown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowRight":
+                await LightboxNext();
+                break;
+            case "ArrowLeft":
+                await LightboxPrev();
+                break;
+            case "Escape":
+                CloseLightbox();
+                break;
+        }
+    }
+
+    public class Photo
+    {
+        public int Id { get; set; }
+        public int AlbumId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string Extension { get; set; } = string.Empty;
+    }
+}
+
+<h3>All Photos</h3>
+
+@if (photos == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="toolbar">
+        <input class="form-control search-box" type="text" placeholder="Search photos..." value="@searchText" @oninput="OnSearchChanged" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (FilteredPhotos.Count == 0)
+    {
+        <p>No photos found.</p>
+    }
+    else
+    {
+        <div class="bulk-toolbar">
+            <label>
+                <input type="checkbox" checked="@AllFilteredSelected" @onchange="e => ToggleSelectAll((bool)e.Value!)" />
+                Select All (@FilteredPhotos.Count)
+            </label>
+
+            @if (selectedPhotoIds.Count > 0)
+            {
+                @if (confirmingBulkDelete)
+                {
+                    <span>Delete @selectedPhotoIds.Count selected photo(s)?</span>
+                    <button class="btn btn-danger" @onclick="ConfirmBulkDelete">Confirm</button>
+                    <button class="btn btn-secondary" @onclick="CancelBulkDelete">Cancel</button>
+                }
+                else
+                {
+                    <button class="btn btn-danger" @onclick="RequestBulkDelete">Delete Selected (@selectedPhotoIds.Count)</button>
+                }
+            }
+        </div>
+
+        <div class="photos">
+            <div class="photo-header">
+                <p class="select-column"></p>
+                <p>ID</p>
+                <p>Photo</p>
+                <p>Title</p>
+                <p>Description</p>
+                <p>Album</p>
+                <p>Extension</p>
+                <p>Actions</p>
+            </div>
+            @foreach (var photo in PagedPhotos)
+            {
+                <div class="photo-item">
+                    <div class="photo-details">
+                        <div class="select-column">
+                            <input type="checkbox" checked="@IsSelected(photo.Id)" @onchange="e => ToggleSelect(photo.Id, (bool)e.Value!)" />
+                        </div>
+                        <p>@photo.Id</p>
+                        <img src="@GetPhotoSrc(photo.Id)" alt="Photo" class="photo-thumbnail" @onclick="() => OpenLightbox(photo.Id)" />
+                        <p>@photo.Title</p>
+                        <p>@photo.Description</p>
+                        <p><a href="#" @onclick="() => NavigateToAlbum(photo.AlbumId)" @onclick:preventDefault>Album #@photo.AlbumId</a></p>
+                        <p>@photo.Extension</p>
+                        <div class="photo-actions">
+                            <button class="btn btn-primary" @onclick="() => NavigateToUpdatePhoto(photo.Id)">Update</button>
+                            <a class="btn btn-secondary" href="@GetPhotoSrc(photo.Id)" download="@GetDownloadFilename(photo)">Download</a>
+                            @if (confirmingDeleteId == photo.Id)
+                            {
+                                <button class="btn btn-danger" @onclick="() => ConfirmDelete(photo.Id)">Confirm</button>
+                                <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-danger" @onclick="() => RequestDelete(photo.Id)">Delete</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="pagination">
+            <button class="btn btn-secondary" disabled="@(currentPage <= 1)" @onclick="() => GoToPage(currentPage - 1)">Prev</button>
+            <span>Page @currentPage of @TotalPages</span>
+            <button class="btn btn-secondary" disabled="@(currentPage >= TotalPages)" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+        </div>
+    }
+
+    @if (isLightboxOpen && LightboxPhoto != null)
+    {
+        <div class="lightbox-overlay" tabindex="0" @ref="lightboxRef" @onkeydown="HandleLightboxKeydown" @onclick="CloseLightbox">
+            <div class="lightbox-content" @onclick:stopPropagation="true">
+                <button class="lightbox-close" @onclick="CloseLightbox">✕</button>
+                <button class="lightbox-nav lightbox-prev" disabled="@(lightboxIndex <= 0)" @onclick="LightboxPrev">‹</button>
+                <img src="@GetPhotoSrc(LightboxPhoto.Id)" alt="@LightboxPhoto.Title" class="lightbox-image" />
+                <button class="lightbox-nav lightbox-next" disabled="@(lightboxIndex >= FilteredPhotos.Count - 1)" @onclick="LightboxNext">›</button>
+                <div class="lightbox-caption">
+                    <p>@LightboxPhoto.Title</p>
+                    <a class="btn btn-secondary" href="@GetPhotoSrc(LightboxPhoto.Id)" download="@GetDownloadFilename(LightboxPhoto)">Download</a>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .search-box {
+        max-width: 300px;
+    }
+
+    .bulk-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    .photos {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .photo-header, .photo-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 10px 0;
+    }
+
+    .photo-header {
+        font-weight: bold;
+        background-color: #d3d3d3;
+        padding: 10px;
+    }
+
+    .select-column {
+        flex: 0 0 40px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .photo-thumbnail {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    .photo-details {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+
+    .photo-details p, .photo-header p {
+        margin: 0 10px;
+        flex: 1;
+        text-align: center;
+    }
+
+    .photo-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1.5;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .photo-item:nth-child(odd) {
+        background-color: #f0f0f0;
+    }
+
+    .photo-item:nth-child(even) {
+        background-color: #ffffff;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background-color: #28a745;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+
+    .alert {
+        margin-top: 20px;
+    }
+
+    .lightbox-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        outline: none;
+    }
+
+    .lightbox-content {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        max-width: 90vw;
+        max-height: 90vh;
+    }
+
+    .lightbox-image {
+        max-width: 75vw;
+        max-height: 80vh;
+        object-fit: contain;
+    }
+
+    .lightbox-nav {
+        background: rgba(255, 255, 255, 0.15);
+        font-size: 2rem;
+        line-height: 1;
+        padding: 10px 15px;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: transparent;
+        font-size: 1.5rem;
+        padding: 5px 10px;
+    }
+
+    .lightbox-caption {
+        position: absolute;
+        bottom: -50px;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        color: white;
+    }
+</style>
