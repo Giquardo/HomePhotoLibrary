@@ -66,6 +66,10 @@
 
             updatedPhoto = await response.Content.ReadFromJsonAsync<PhotoDto>();
         }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
@@ -90,6 +94,10 @@
 
             Navigation.NavigateTo($"/album/{updatedPhoto.AlbumId}");
         }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
@@ -113,6 +121,10 @@
             response.EnsureSuccessStatusCode();
     
             Navigation.NavigateTo($"/album/{updatedPhoto.AlbumId}"); // Navigate to the album page
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
         }
         catch (Exception ex)
         {

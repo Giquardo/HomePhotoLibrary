@@ -34,7 +34,15 @@
         }
 
         Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        album = await Http.GetFromJsonAsync<AlbumDetailDto>($"api/v1/albums/{albumId}");
+        try
+        {
+            album = await Http.GetFromJsonAsync<AlbumDetailDto>($"api/v1/albums/{albumId}");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+            return;
+        }
 
         await LoadCurrentPageImagesAsync();
     }
@@ -141,6 +149,10 @@
             }
             await LoadCurrentPageImagesAsync();
         }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
@@ -205,6 +217,10 @@
                 currentPage = TotalPages;
             }
             await LoadCurrentPageImagesAsync();
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
         }
         catch (Exception ex)
         {

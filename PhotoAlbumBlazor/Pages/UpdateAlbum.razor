@@ -8,6 +8,7 @@
     public int AlbumId { get; set; }
 
     private AlbumSummaryDto album = new AlbumSummaryDto();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -19,7 +20,14 @@
         }
 
         Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        album = await Http.GetFromJsonAsync<AlbumSummaryDto>($"api/v1/albums/{AlbumId}");
+        try
+        {
+            album = await Http.GetFromJsonAsync<AlbumSummaryDto>($"api/v1/albums/{AlbumId}");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
     }
 
     private async Task HandleValidSubmit()
@@ -38,9 +46,13 @@
         {
             Navigation.NavigateTo("/albums");
         }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         else
         {
-            // Handle error
+            errorMessage = $"Failed to update album ({(int)response.StatusCode}).";
         }
     }
 
@@ -60,9 +72,13 @@
         {
             Navigation.NavigateTo("/albums");
         }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         else
         {
-            // Handle error
+            errorMessage = $"Failed to delete album ({(int)response.StatusCode}).";
         }
     }
 
@@ -102,6 +118,11 @@
     <button type="button" class="btn btn-danger" @onclick="DeleteAlbum">Delete Album</button>
 </EditForm>
 
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
 <style>
     .form-group {
         margin-bottom: 15px;
@@ -136,5 +157,9 @@
 
     .btn-danger:hover {
         background-color: #c82333;
+    }
+
+    .alert {
+        margin-top: 20px;
     }
 </style>

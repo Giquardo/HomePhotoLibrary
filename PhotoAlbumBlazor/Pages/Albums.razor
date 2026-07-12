@@ -214,7 +214,14 @@ else
         }
 
         Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        albums = await Http.GetFromJsonAsync<List<AlbumSummaryDto>>("api/v1/albums");
+        try
+        {
+            albums = await Http.GetFromJsonAsync<List<AlbumSummaryDto>>("api/v1/albums");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
     }
 
     private void NavigateToAlbum(int albumId)

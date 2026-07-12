@@ -23,6 +23,11 @@
     <button type="submit" class="btn btn-primary">Add Album</button>
 </EditForm>
 
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
 <style>
     .form-group {
         margin-bottom: 15px;
@@ -46,10 +51,15 @@
     .btn:hover {
         background-color: #0056b3;
     }
+
+    .alert {
+        margin-top: 20px;
+    }
 </style>
 
 @code {
     private AlbumSummaryDto newAlbum = new AlbumSummaryDto();
+    private string? errorMessage;
 
     private async Task HandleValidSubmit()
     {
@@ -67,9 +77,13 @@
         {
             Navigation.NavigateTo("/albums");
         }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         else
         {
-            // Handle error
+            errorMessage = $"Failed to add album ({(int)response.StatusCode}).";
         }
     }
 

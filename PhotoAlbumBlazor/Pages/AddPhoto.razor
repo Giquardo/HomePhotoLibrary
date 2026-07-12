@@ -66,6 +66,10 @@
             response.EnsureSuccessStatusCode();
             Navigation.NavigateTo($"/album/{albumId}");
         }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
