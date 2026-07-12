@@ -10,6 +10,7 @@
     public int albumId { get; set; }
 
     private AlbumDetailDto album;
+    private readonly Dictionary<int, string> photoSources = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -22,7 +23,37 @@
 
         Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         album = await Http.GetFromJsonAsync<AlbumDetailDto>($"api/v1/albums/{albumId}");
+
+        if (album != null)
+        {
+            // Every photo endpoint requires a Bearer token, which a plain <img src>
+            // can't send - fetch the bytes through the authenticated HttpClient and
+            // render them as a data URI instead of linking to the API directly.
+            await Task.WhenAll(album.Photos.Select(LoadPhotoImageAsync));
+        }
     }
+
+    private async Task LoadPhotoImageAsync(Photo photo)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/photos/download/{photo.Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            photoSources[photo.Id] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch
+        {
+            // Leave unset; the <img> just renders broken for this one photo.
+        }
+    }
+
+    private string GetPhotoSrc(int photoId) => photoSources.TryGetValue(photoId, out var src) ? src : string.Empty;
 
     private void NavigateToUpdatePhoto(int photoId)
     {
@@ -52,20 +83,6 @@
         public DateTime DateUploaded { get; set; }
         public string Extension { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
-
-        // Method to get the correct image URL
-        public string GetImageUrl()
-        {
-            // Prioritize the Url property if it contains an actual URL
-            if (!string.IsNullOrEmpty(Url))
-            {
-                return Url;
-            }
-
-            // Remove 'Data\Files\' from the FilePath and use the symbolic link
-            var relativePath = FilePath.Replace(@"Data\Files\", string.Empty);
-            return $"/images/{relativePath}";
-        }
     }
 }
 
@@ -94,7 +111,7 @@ else
                 <div class="photo-item">
                     <div class="photo-details">
                         <p>@photo.Id</p>
-                        <img src="@photo.GetImageUrl()" alt="Photo" class="photo-thumbnail" />
+                        <img src="@GetPhotoSrc(photo.Id)" alt="Photo" class="photo-thumbnail" />
                         <p>@photo.Title</p>
                         <p>@photo.Description</p>
                         <p>@photo.DateUploaded</p>
