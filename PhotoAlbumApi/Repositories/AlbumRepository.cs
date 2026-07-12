@@ -8,6 +8,7 @@ public interface IAlbumRepository
 {
     Task<IEnumerable<Album>> GetAlbumsAsync(int userId);
     Task<Album?> GetAlbumByIdAsync(int id, int userId);
+    Task<Album?> GetAlbumByIdIgnoringOwnerAsync(int id);
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id, int userId);
@@ -37,6 +38,17 @@ public class AlbumRepository : IAlbumRepository
         return await _context.Albums
             .Include(a => a.Photos.Where(p => !p.IsDeleted)) // Filter out deleted photos
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId && !a.IsDeleted); // Filter out deleted albums
+    }
+
+    // No userId filter - used only by the public share-link view, where the
+    // viewer isn't the album's owner and there's no authenticated user to
+    // scope by. The ShareLink itself (token + expiry + revocation) is what
+    // gates access, not ownership.
+    public async Task<Album?> GetAlbumByIdIgnoringOwnerAsync(int id)
+    {
+        return await _context.Albums
+            .Include(a => a.Photos.Where(p => !p.IsDeleted))
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
     }
 
     public async Task<Album> AddAlbumAsync(Album album)

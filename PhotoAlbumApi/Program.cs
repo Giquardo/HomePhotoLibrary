@@ -54,12 +54,14 @@ public class Program
         builder.Services.AddTransient<IAlbumRepository, AlbumRepository>();
         builder.Services.AddTransient<IPhotoRepository, PhotoRepository>();
         builder.Services.AddTransient<IUserRepository, UserRepository>();
+        builder.Services.AddTransient<IShareLinkRepository, ShareLinkRepository>();
 
         // Register services
         builder.Services.AddTransient<IImageService, ImageService>();
         builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
         builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
         builder.Services.AddTransient<IUserService, UserService>();
+        builder.Services.AddTransient<IShareLinkService, ShareLinkService>();
 
         // Redirects are followed manually (with re-validation against the SSRF
         // block-list on every hop) instead of automatically by the handler.
@@ -136,11 +138,25 @@ public class Program
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0
                 }));
+            // Shared across every policy registered below (OnRejected is process-wide,
+            // not per-policy), so the message stays generic rather than login-specific.
             options.OnRejected = async (context, cancellationToken) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                await context.HttpContext.Response.WriteAsync("Too many login attempts. Please try again later.", cancellationToken);
+                await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", cancellationToken);
             };
+
+            // Cheap defense-in-depth on the public share endpoints. The share
+            // token's entropy already makes brute-forcing infeasible; this just
+            // slows down casual scraping/abuse.
+            options.AddPolicy("share", context => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 30,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                }));
         });
 
         // Configure the Swagger generator
