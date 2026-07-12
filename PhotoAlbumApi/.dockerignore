@@ -6,4 +6,6 @@
 **/Dockerfile
 **/.dockerignore
 **/Logs
-**/Data
+# Only the runtime uploads folder, not the Data/ source directory
+# (DbContext.cs, Migrations/) that shares the same parent path.
+Data/Files

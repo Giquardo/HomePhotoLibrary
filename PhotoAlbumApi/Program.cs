@@ -17,6 +17,7 @@ using PhotoAlbumApi.Swagger;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using PhotoAlbumApi.Models;
+using PhotoAlbumApi.HealthChecks;
 
 public class Program
 {
@@ -40,6 +41,7 @@ public class Program
             throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
         }
         builder.Services.AddDbContext<PhotoAlbumContext>(options => options.UseMySQL(connectionString));
+        builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 
         // JWT signing key must come from a runtime secret and be strong enough for HS256.
         var jwtKey = builder.Configuration["Jwt:Key"];
@@ -199,12 +201,15 @@ public class Program
 
         var app = builder.Build();
 
-        // Bootstrap a single admin account from ADMIN_USERNAME/ADMIN_PASSWORD if the
-        // Users table is empty. No open registration exists, so refuse to start rather
-        // than come up with zero usable accounts.
+        // Apply pending EF migrations, then bootstrap a single admin account from
+        // ADMIN_USERNAME/ADMIN_PASSWORD if the Users table is empty. No open
+        // registration exists, so refuse to start rather than come up with zero
+        // usable accounts. Migrate() is idempotent, safe to run on every startup.
         using (var scope = app.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<PhotoAlbumContext>();
+            context.Database.Migrate();
+
             if (!context.Users.Any())
             {
                 var adminUsername = builder.Configuration["ADMIN_USERNAME"];
@@ -237,6 +242,8 @@ public class Program
         app.UseRateLimiter();
 
         app.MapGet("/", () => Results.Redirect("/swagger"));
+
+        app.MapHealthChecks("/health");
 
         // Map the controllers
         app.MapControllers();

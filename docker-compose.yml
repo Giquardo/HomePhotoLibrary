@@ -1,0 +1,83 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: ./PhotoAlbumApi
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Constructed from the same MySQL vars used by the db service above, so
+      # the password only lives in one place in .env.
+      ConnectionStrings__DefaultConnection: "Server=db;Port=3306;Database=${MYSQL_DATABASE:-photoalbum};Uid=${MYSQL_USER:-photoalbum};Pwd=${MYSQL_PASSWORD};"
+      Storage__BasePath: /app/Data/Files
+      Logging__BasePath: /app/Logs
+    volumes:
+      - api-images:/app/Data/Files
+      - api-logs:/app/Logs
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ./PhotoAlbumBlazor
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  db-data:
+  api-images:
+  api-logs:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:

@@ -1,0 +1,21 @@
+# LAN-only MVP: a named site address + Caddy's local CA (tls internal) gives
+# automatic HTTPS (and an automatic HTTP->HTTPS redirect) with no real
+# domain. SITE_ADDRESS defaults to "localhost"; set it in .env to whatever
+# hostname LAN clients will actually use to reach this host. Browsers will
+# show a self-signed warning unless Caddy's root CA is trusted on the client
+# - acceptable for a home LAN, per the modernization plan's owner decision.
+#
+# To expose this to the internet later: set SITE_ADDRESS to your real domain
+# (e.g. "photos.example.com") and remove the "tls internal" line below -
+# Caddy will automatically obtain a Let's Encrypt certificate instead.
+{$SITE_ADDRESS:localhost} {
+	tls internal
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}
