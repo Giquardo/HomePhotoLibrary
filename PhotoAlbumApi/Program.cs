@@ -58,7 +58,16 @@ public class Program
         builder.Services.AddTransient<IPhotoAlbumService, PhotoAlbumService>();
         builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
         builder.Services.AddTransient<IUserService, UserService>();
-        builder.Services.AddHttpClient();
+
+        // Redirects are followed manually (with re-validation against the SSRF
+        // block-list on every hop) instead of automatically by the handler.
+        builder.Services.AddHttpClient(ImageService.DownloadHttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
 
         // Register FluentValidation
         builder.Services.AddControllers()

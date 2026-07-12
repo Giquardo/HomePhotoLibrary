@@ -120,6 +120,7 @@ namespace PhotoAlbumApi.Controllers
 
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
+        [RequestSizeLimit(20 * 1024 * 1024)]
         public async Task<ActionResult> UploadPhoto([FromForm] PhotoUploadDto photoUploadDto)
         {
             try

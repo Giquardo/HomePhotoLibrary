@@ -21,7 +21,8 @@ public class PhotoValidator : AbstractValidator<PhotoDto>
         RuleFor(photo => photo.Url)
             .NotEmpty()
             .WithMessage("URL must be provided.")
-            .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
-            .WithMessage("URL must be a well-formed absolute URI.");
+            .Must(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            .WithMessage("URL must be a well-formed absolute http or https URI.");
     }
 }
