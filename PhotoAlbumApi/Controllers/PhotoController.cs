@@ -132,7 +132,7 @@ namespace PhotoAlbumApi.Controllers
                 {
                     AlbumId = photoUploadDto.AlbumId,
                     Title = photoUploadDto.Title,
-                    Description = photoUploadDto.Description,
+                    Description = photoUploadDto.Description ?? string.Empty,
                     UserId = userId
                 };
 
@@ -178,7 +178,7 @@ namespace PhotoAlbumApi.Controllers
                 {
                     AlbumId = photoDto.AlbumId,
                     Title = photoDto.Title,
-                    Description = photoDto.Description,
+                    Description = photoDto.Description ?? string.Empty,
                     UserId = userId,
                     Url = photoDto.Url
                 };
