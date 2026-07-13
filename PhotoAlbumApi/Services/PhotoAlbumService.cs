@@ -100,6 +100,9 @@ public class PhotoAlbumService : IPhotoAlbumService
         var existingPhoto = await _photoRepository.GetPhotoByHashAsync(photo.Hash);
         if (existingPhoto != null)
         {
+            // The file was already written to disk before the hash could be
+            // checked; clean it up rather than leaving an orphaned duplicate.
+            DeleteImage(photo.FilePath);
             throw new InvalidOperationException("An image with the same hash already exists.");
         }
 

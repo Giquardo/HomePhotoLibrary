@@ -28,6 +28,7 @@ services:
     volumes:
       - api-images:/app/Data/Files
       - api-logs:/app/Logs
+      - api-dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       db:
         condition: service_healthy
@@ -76,6 +77,7 @@ volumes:
   db-data:
   api-images:
   api-logs:
+  api-dataprotection-keys:
   caddy-data:
   caddy-config:
 

@@ -27,6 +27,10 @@ COPY --from=publish /app/publish .
 # Pre-create the volume mount points so Docker seeds fresh named volumes with
 # app:app ownership on first use - they don't otherwise exist in this image
 # (the app creates them lazily), so a mounted volume would default to root.
-RUN mkdir -p /app/Logs /app/Data/Files && chown -R app:app /app
+# DataProtection-Keys included: ASP.NET Core writes there by default and warns
+# if it isn't persisted - keys would otherwise regenerate on every container
+# restart/recreate.
+RUN mkdir -p /app/Logs /app/Data/Files /home/app/.aspnet/DataProtection-Keys \
+    && chown -R app:app /app /home/app/.aspnet
 USER app
 ENTRYPOINT ["dotnet", "Backend_dev.dll"]
