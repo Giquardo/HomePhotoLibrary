@@ -87,7 +87,7 @@ public class Program
         builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
         // Register the custom logging service as a singleton
-        builder.Services.AddSingleton<ILoggingService>(new LoggingService(Path.Combine(logsBasePath, "custom_log.txt")));
+        builder.Services.AddSingleton<ILoggingService, LoggingService>();
 
         // Register Memory Cache service
         builder.Services.AddMemoryCache();
