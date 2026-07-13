@@ -1,0 +1,189 @@
+@page "/share/{token}"
+@layout PublicLayout
+@inject HttpClient Http
+@using System.Net.Http.Json
+
+<div class="shared-album-page">
+    @if (isLoading)
+    {
+        <p>Loading...</p>
+    }
+    else if (album == null)
+    {
+        <div class="not-found">
+            <h3>Link not available</h3>
+            <p>This share link is invalid, has expired, or has been revoked.</p>
+        </div>
+    }
+    else
+    {
+        <h2>@album.Title</h2>
+        @if (!string.IsNullOrEmpty(album.Description))
+        {
+            <p class="album-description">@album.Description</p>
+        }
+
+        @if (album.Photos.Count == 0)
+        {
+            <p>This album has no photos.</p>
+        }
+        else
+        {
+            <div class="photo-grid">
+                @foreach (var photo in album.Photos)
+                {
+                    <div class="photo-card">
+                        <img src="@GetPhotoSrc(photo.Id)" alt="@photo.Title" class="photo-thumbnail" />
+                        <p class="photo-title">@photo.Title</p>
+                        @if (!string.IsNullOrEmpty(photo.Description))
+                        {
+                            <p class="photo-description">@photo.Description</p>
+                        }
+                        <a class="btn btn-secondary" href="@GetPhotoSrc(photo.Id)" download="@GetDownloadFilename(photo)">Download</a>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .shared-album-page {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px 0;
+    }
+
+    .album-description {
+        color: #555;
+        margin-bottom: 20px;
+    }
+
+    .not-found {
+        text-align: center;
+        padding: 40px 0;
+        color: #777;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+    }
+
+    .photo-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .photo-thumbnail {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 5px;
+        margin-bottom: 8px;
+    }
+
+    .photo-title {
+        font-weight: bold;
+        margin: 4px 0;
+    }
+
+    .photo-description {
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0 0 8px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        color: white;
+        background-color: #6c757d;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn:hover {
+        background-color: #5a6268;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private SharedAlbumDto? album;
+    private bool isLoading = true;
+    private readonly Dictionary<int, string> photoSources = new();
+
+    // Deliberately does not check authToken/local storage at all - this page
+    // is for anonymous visitors. Access is gated entirely by the token in
+    // the URL, validated server-side.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/shares/{Token}");
+            if (response.IsSuccessStatusCode)
+            {
+                album = await response.Content.ReadFromJsonAsync<SharedAlbumDto>();
+                if (album != null)
+                {
+                    await Task.WhenAll(album.Photos.Select(LoadPhotoImageAsync));
+                }
+            }
+        }
+        catch
+        {
+            album = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadPhotoImageAsync(SharedPhotoDto photo)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/shares/{Token}/photos/{photo.Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            photoSources[photo.Id] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch
+        {
+            // Leave unset; the <img> just renders broken for this one photo.
+        }
+    }
+
+    private string GetPhotoSrc(int photoId) => photoSources.TryGetValue(photoId, out var src) ? src : string.Empty;
+
+    private string GetDownloadFilename(SharedPhotoDto photo) => $"{photo.Title.Replace(' ', '_')}{photo.Extension}";
+
+    public class SharedAlbumDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public List<SharedPhotoDto> Photos { get; set; } = new();
+    }
+
+    public class SharedPhotoDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Extension { get; set; } = string.Empty;
+    }
+}

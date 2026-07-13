@@ -23,6 +23,11 @@
     private int lightboxIndex;
     private ElementReference lightboxRef;
     private string? errorMessage;
+    private bool isShareSectionOpen;
+    private List<ShareLinkDto> shareLinks = new();
+    private string? newShareUrl;
+    private string? shareErrorMessage;
+    private string? confirmingRevokeToken;
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,6 +125,102 @@
     private void NavigateToAddPhoto()
     {
         Navigation.NavigateTo($"/add-photo/{albumId}");
+    }
+
+    // --- Sharing ---
+    private async Task ToggleShareSection()
+    {
+        isShareSectionOpen = !isShareSectionOpen;
+        if (isShareSectionOpen)
+        {
+            await LoadShareLinksAsync();
+        }
+    }
+
+    private async Task LoadShareLinksAsync()
+    {
+        try
+        {
+            var all = await Http.GetFromJsonAsync<List<ShareLinkDto>>("api/shares") ?? new();
+            shareLinks = all.Where(s => s.AlbumId == albumId).ToList();
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        catch (Exception ex)
+        {
+            shareErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task CreateShareLink()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/shares", new { AlbumId = albumId, ExpiresInHours = 168 });
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<ShareLinkDto>();
+                if (created != null)
+                {
+                    newShareUrl = $"{Navigation.BaseUri}share/{created.Token}";
+                    await LoadShareLinksAsync();
+                }
+                shareErrorMessage = null;
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+            }
+            else
+            {
+                shareErrorMessage = $"Failed to create share link ({(int)response.StatusCode}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            shareErrorMessage = ex.Message;
+        }
+    }
+
+    private void RequestRevoke(string token) => confirmingRevokeToken = token;
+    private void CancelRevoke() => confirmingRevokeToken = null;
+
+    private async Task ConfirmRevoke(string token)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/shares/{token}");
+            if (response.IsSuccessStatusCode)
+            {
+                shareLinks.RemoveAll(s => s.Token == token);
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+            }
+            else
+            {
+                shareErrorMessage = $"Failed to revoke share link ({(int)response.StatusCode}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            shareErrorMessage = ex.Message;
+        }
+        finally
+        {
+            confirmingRevokeToken = null;
+        }
+    }
+
+    public class ShareLinkDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public int AlbumId { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime ExpiresAtUtc { get; set; }
     }
 
     // --- Single delete: two-stage confirm, no JS dialog needed ---
@@ -323,8 +424,68 @@ else
 
         <div class="toolbar">
             <button class="btn btn-success" @onclick="NavigateToAddPhoto">Add Photo</button>
+            <button class="btn btn-secondary" @onclick="ToggleShareSection">Share Album</button>
             <input class="form-control search-box" type="text" placeholder="Search photos..." value="@searchText" @oninput="OnSearchChanged" />
         </div>
+
+        @if (isShareSectionOpen)
+        {
+            <div class="share-panel">
+                <button class="btn btn-primary" @onclick="CreateShareLink">Create New Share Link</button>
+
+                @if (!string.IsNullOrEmpty(newShareUrl))
+                {
+                    <div class="share-url-box">
+                        <input class="form-control" readonly value="@newShareUrl" />
+                        <p class="hint">Copy this link to share the album - anyone with it can view and download the photos, no account needed.</p>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(shareErrorMessage))
+                {
+                    <div class="alert alert-danger">@shareErrorMessage</div>
+                }
+
+                @if (shareLinks.Count > 0)
+                {
+                    <table class="share-links-table">
+                        <thead>
+                            <tr>
+                                <th>Link</th>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var share in shareLinks)
+                            {
+                                <tr>
+                                    <td class="share-token-cell">@($"{Navigation.BaseUri}share/{share.Token}")</td>
+                                    <td>@share.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                                    <td>@share.ExpiresAtUtc.ToLocalTime().ToString("g")</td>
+                                    <td>
+                                        @if (confirmingRevokeToken == share.Token)
+                                        {
+                                            <button class="btn btn-danger" @onclick="() => ConfirmRevoke(share.Token)">Confirm</button>
+                                            <button class="btn btn-secondary" @onclick="CancelRevoke">Cancel</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-danger" @onclick="() => RequestRevoke(share.Token)">Revoke</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p>No active share links for this album.</p>
+                }
+            </div>
+        }
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
@@ -435,6 +596,46 @@ else
 
     .search-box {
         max-width: 300px;
+    }
+
+    .share-panel {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .share-url-box {
+        margin-top: 10px;
+    }
+
+    .share-url-box input {
+        max-width: 500px;
+    }
+
+    .share-url-box .hint {
+        margin: 6px 0 0;
+        color: #777;
+        font-size: 0.85rem;
+    }
+
+    .share-links-table {
+        width: 100%;
+        margin-top: 15px;
+        border-collapse: collapse;
+    }
+
+    .share-links-table th, .share-links-table td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .share-token-cell {
+        font-family: monospace;
+        font-size: 0.85rem;
+        word-break: break-all;
     }
 
     .bulk-toolbar {
