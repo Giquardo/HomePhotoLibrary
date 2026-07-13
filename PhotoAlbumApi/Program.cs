@@ -29,7 +29,7 @@ public class Program
         var logsBasePath = builder.Configuration["Logging:BasePath"] ?? "Logs";
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
-            .WriteTo.File(Path.Combine(logsBasePath, "serilog.txt"), rollingInterval: RollingInterval.Day)
+            .WriteTo.File(Path.Combine(logsBasePath, "serilog.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
             .CreateLogger();
 
         builder.Host.UseSerilog();

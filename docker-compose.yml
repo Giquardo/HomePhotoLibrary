@@ -54,6 +54,22 @@ services:
       retries: 5
       start_period: 10s
 
+  backup:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file: .env
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
+    volumes:
+      - ./scripts/backup.sh:/scripts/backup.sh:ro
+      - ./scripts/restore.sh:/scripts/restore.sh:ro
+      - api-images:/data/images
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped

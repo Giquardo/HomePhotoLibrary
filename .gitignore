@@ -11,6 +11,9 @@
 .env
 appsettings.*.Local.json
 
+# Local backup output - contains real DB dumps and photos, never commit.
+/backups/
+
 # User-specific files
 *.rsuser
 *.suo
