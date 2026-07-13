@@ -27,9 +27,13 @@ public class Program
 
         // Configure Serilog
         var logsBasePath = builder.Configuration["Logging:BasePath"] ?? "Logs";
+        const string outputTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}";
         Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .WriteTo.File(Path.Combine(logsBasePath, "serilog.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
+            // Required for the CorrelationId pushed via LogContext (below) to
+            // actually reach the sinks - without this it's silently dropped.
+            .Enrich.FromLogContext()
+            .WriteTo.Console(outputTemplate: outputTemplate)
+            .WriteTo.File(Path.Combine(logsBasePath, "serilog.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30, outputTemplate: outputTemplate)
             .CreateLogger();
 
         builder.Host.UseSerilog();
@@ -248,6 +252,20 @@ public class Program
                 context.SaveChanges();
             }
         }
+
+        // Push ASP.NET Core's own per-request TraceIdentifier into Serilog's
+        // log context, so every log line written while handling a request -
+        // not just the summary line below - carries the same correlation id.
+        // Echoed back to the caller too, so a support request can reference it.
+        app.Use(async (context, next) =>
+        {
+            using (Serilog.Context.LogContext.PushProperty("CorrelationId", context.TraceIdentifier))
+            {
+                context.Response.Headers["X-Correlation-Id"] = context.TraceIdentifier;
+                await next();
+            }
+        });
+        app.UseSerilogRequestLogging();
 
         app.UseAuthentication(); // Enable authentication
         app.UseAuthorization(); // Enable authorization
