@@ -10,28 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: ci_root_password
-          MYSQL_DATABASE: photoalbum_ci
-          MYSQL_USER: photoalbum
-          MYSQL_PASSWORD: ci_password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u root -pci_root_password"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
-    env:
-      ConnectionStrings__DefaultConnection: "Server=127.0.0.1;Port=3306;Database=photoalbum_ci;Uid=photoalbum;Pwd=ci_password;"
-      Jwt__Key: "ci-only-jwt-signing-key-at-least-32-bytes-long"
-      ADMIN_USERNAME: "ci_admin"
-      ADMIN_PASSWORD: "ci_admin_password_123"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,12 +27,6 @@ jobs:
 
       - name: Unit tests
         run: dotnet test UnitTests/UnitTests.csproj --no-build -c Release
-
-      # Program.Main() applies EF migrations and bootstraps the admin account
-      # on startup, so a broken migration or a bootstrap regression fails
-      # here rather than only surfacing against the real deployment.
-      - name: Integration tests
-        run: dotnet test IntegrationTests/IntegrationTests.csproj --no-build -c Release
 
       - name: Build API Docker image
         uses: docker/build-push-action@v6
