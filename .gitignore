@@ -14,6 +14,13 @@ appsettings.*.Local.json
 # Local backup output - contains real DB dumps and photos, never commit.
 /backups/
 
+# Actual uploaded photo content (local dev storage) - never commit real
+# family photos to a public repo. Server default is Storage:BasePath=/app/Data/Files
+# in the container (a named volume, never part of the repo); this covers the
+# equivalent path when running the API locally outside Docker.
+/PhotoAlbumApi/Data/Files/
+/Files/
+
 # User-specific files
 *.rsuser
 *.suo
