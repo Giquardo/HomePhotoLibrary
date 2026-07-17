@@ -13,6 +13,8 @@ public interface IAlbumRepository
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id, int userId);
     Task<Album?> UndoDeleteAlbumAsync(int id, int userId);
+    Task<IEnumerable<Album>> GetAlbumsPendingPurgeAsync(DateTime cutoffUtc);
+    Task PurgeAlbumAsync(Album album);
 }
 
 public class AlbumRepository : IAlbumRepository
@@ -79,6 +81,7 @@ public class AlbumRepository : IAlbumRepository
         if (album != null && !album.IsDeleted)
         {
             album.IsDeleted = true;
+            album.DeletedAtUtc = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }
@@ -89,8 +92,23 @@ public class AlbumRepository : IAlbumRepository
         if (album != null && album.IsDeleted)
         {
             album.IsDeleted = false;
+            album.DeletedAtUtc = null;
             await _context.SaveChangesAsync();
         }
         return album;
+    }
+
+    public async Task<IEnumerable<Album>> GetAlbumsPendingPurgeAsync(DateTime cutoffUtc)
+    {
+        return await _context.Albums
+            .Include(a => a.Photos)
+            .Where(a => a.IsDeleted && a.DeletedAtUtc <= cutoffUtc)
+            .ToListAsync();
+    }
+
+    public async Task PurgeAlbumAsync(Album album)
+    {
+        _context.Albums.Remove(album);
+        await _context.SaveChangesAsync();
     }
 }

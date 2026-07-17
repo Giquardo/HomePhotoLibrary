@@ -13,6 +13,8 @@ public interface IPhotoRepository
     Task DeletePhotoAsync(int id, int userId);
     Task<Photo?> UndoDeletePhotoAsync(int id, int userId);
     Task<Photo?> GetPhotoByHashAsync(string hash);
+    Task<IEnumerable<Photo>> GetPhotosPendingPurgeAsync(DateTime cutoffUtc);
+    Task PurgePhotoAsync(Photo photo);
 
 }
 
@@ -80,6 +82,7 @@ public class PhotoRepository : IPhotoRepository
         if (photo != null && !photo.IsDeleted)
         {
             photo.IsDeleted = true;
+            photo.DeletedAtUtc = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }
@@ -90,6 +93,7 @@ public class PhotoRepository : IPhotoRepository
         if (photo != null && photo.IsDeleted)
         {
             photo.IsDeleted = false;
+            photo.DeletedAtUtc = null;
             await _context.SaveChangesAsync();
         }
         return photo;
@@ -98,5 +102,20 @@ public class PhotoRepository : IPhotoRepository
     public async Task<Photo?> GetPhotoByHashAsync(string hash)
     {
         return await _context.Photos.FirstOrDefaultAsync(p => p.Hash == hash && !p.IsDeleted);
+    }
+
+    // Excludes photos whose parent album is also soft-deleted - those are
+    // handled by the album purge path instead, so the two never race/double-purge.
+    public async Task<IEnumerable<Photo>> GetPhotosPendingPurgeAsync(DateTime cutoffUtc)
+    {
+        return await _context.Photos
+            .Where(p => p.IsDeleted && p.DeletedAtUtc <= cutoffUtc && !p.Album.IsDeleted)
+            .ToListAsync();
+    }
+
+    public async Task PurgePhotoAsync(Photo photo)
+    {
+        _context.Photos.Remove(photo);
+        await _context.SaveChangesAsync();
     }
 }

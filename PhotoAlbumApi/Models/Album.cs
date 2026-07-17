@@ -27,4 +27,5 @@ public class Album
 
     // Soft delete properties
     public bool IsDeleted { get; set; } = false; // Initialize with default value
+    public DateTime? DeletedAtUtc { get; set; }
 }

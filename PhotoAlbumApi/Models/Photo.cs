@@ -39,4 +39,5 @@ public class Photo
     public Album Album { get; set; } = null!;
 
     public bool IsDeleted { get; set; } = false; // Initialize with default value
+    public DateTime? DeletedAtUtc { get; set; }
 }

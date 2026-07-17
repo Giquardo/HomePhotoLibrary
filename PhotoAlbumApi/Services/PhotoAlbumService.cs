@@ -102,7 +102,7 @@ public class PhotoAlbumService : IPhotoAlbumService
         {
             // The file was already written to disk before the hash could be
             // checked; clean it up rather than leaving an orphaned duplicate.
-            DeleteImage(photo.FilePath);
+            _imageService.DeleteFile(photo.FilePath);
             throw new InvalidOperationException("An image with the same hash already exists.");
         }
 
@@ -157,14 +157,6 @@ public class PhotoAlbumService : IPhotoAlbumService
             FileName = fileName,
             ContentType = GetContentType(photo.Extension)
         };
-    }
-
-    private void DeleteImage(string filePath)
-    {
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
     }
 
     private string CalculateHash(string filePath)

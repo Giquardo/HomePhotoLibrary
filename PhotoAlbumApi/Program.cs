@@ -66,6 +66,8 @@ public class Program
         builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
         builder.Services.AddTransient<IUserService, UserService>();
         builder.Services.AddTransient<IShareLinkService, ShareLinkService>();
+        builder.Services.AddTransient<ITrashCleanupService, TrashCleanupService>();
+        builder.Services.AddHostedService<TrashPurgeBackgroundService>();
 
         // Redirects are followed manually (with re-validation against the SSRF
         // block-list on every hop) instead of automatically by the handler.

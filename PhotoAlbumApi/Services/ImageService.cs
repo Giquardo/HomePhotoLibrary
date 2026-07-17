@@ -8,6 +8,7 @@ public interface IImageService
 {
     Task<string> DownloadImageAsync(string imageUrl);
     Task<string> SaveUploadedFileAsync(IFormFile file);
+    void DeleteFile(string filePath);
 }
 
 public class ImageService : IImageService
@@ -77,6 +78,14 @@ public class ImageService : IImageService
             response.EnsureSuccessStatusCode();
             var imageBytes = await ReadBoundedAsync(response.Content);
             return await SaveImageBytesAsync(imageBytes);
+        }
+    }
+
+    public void DeleteFile(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
         }
     }
 
