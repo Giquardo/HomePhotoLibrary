@@ -12,7 +12,7 @@ public interface IAlbumRepository
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id, int userId);
-    Task<Album> UndoDeleteAlbumAsync(int id, int userId);
+    Task<Album?> UndoDeleteAlbumAsync(int id, int userId);
 }
 
 public class AlbumRepository : IAlbumRepository
@@ -83,7 +83,7 @@ public class AlbumRepository : IAlbumRepository
         }
     }
 
-    public async Task<Album> UndoDeleteAlbumAsync(int id, int userId)
+    public async Task<Album?> UndoDeleteAlbumAsync(int id, int userId)
     {
         var album = await _context.Albums.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
         if (album != null && album.IsDeleted)
@@ -93,5 +93,4 @@ public class AlbumRepository : IAlbumRepository
         }
         return album;
     }
-
 }

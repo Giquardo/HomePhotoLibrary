@@ -72,7 +72,7 @@ public class PhotoControllerTests
         _mockService.Setup(s => s.GetPhotosAsync(userId)).ReturnsAsync(photos);
         _mockMapper.Setup(m => m.Map<IEnumerable<PhotoDto>>(photos)).Returns(photoDtos);
 
-        object cacheValue;
+        object? cacheValue;
         _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out cacheValue)).Returns(false);
         _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(Mock.Of<ICacheEntry>());
 
@@ -100,7 +100,7 @@ public class PhotoControllerTests
     [Fact]
     public async Task GetPhotos_NotFound()
     {
-        _mockService.Setup(s => s.GetPhotosAsync(It.IsAny<int>())).ReturnsAsync((IEnumerable<Photo>)null);
+        _mockService.Setup(s => s.GetPhotosAsync(It.IsAny<int>())).ReturnsAsync((IEnumerable<Photo>?)null);
 
         // Act
         var result = await _controller.GetPhotos();
@@ -136,7 +136,7 @@ public class PhotoControllerTests
         _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync(photo);
         _mockMapper.Setup(m => m.Map<PhotoDisplayDto>(photo)).Returns(photoDto);
 
-        object cacheValue;
+        object? cacheValue;
         _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out cacheValue)).Returns(false);
         _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(Mock.Of<ICacheEntry>());
 
@@ -156,7 +156,7 @@ public class PhotoControllerTests
         var userId = 1;
         var photoId = 1;
 
-        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo)null);
+        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo?)null);
 
         // Act
         var result = await _controller.GetPhoto(photoId);
@@ -404,7 +404,7 @@ public class PhotoControllerTests
     public async Task UpdatePhoto_ReturnsBadRequest_WhenPhotoUpdateDtoIsNull()
     {
         // Arrange
-        PhotoUpdateDto photoUpdateDto = null;
+        PhotoUpdateDto? photoUpdateDto = null;
 
         // Act
         var result = await _controller.UpdatePhoto(1, photoUpdateDto);
@@ -422,7 +422,7 @@ public class PhotoControllerTests
         var userId = 1;
         var photoId = 1;
 
-        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo)null);
+        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo?)null);
 
         // Act
         var result = await _controller.UpdatePhoto(photoId, photoUpdateDto);
@@ -442,7 +442,7 @@ public class PhotoControllerTests
         var existingPhoto = new Photo { Id = photoId, AlbumId = 1, Title = "Old Photo", Description = "Old Description", UserId = userId };
 
         _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync(existingPhoto);
-        _mockService.Setup(s => s.UpdatePhotoAsync(It.IsAny<Photo>())).ReturnsAsync((Photo)null);
+        _mockService.Setup(s => s.UpdatePhotoAsync(It.IsAny<Photo>())).ReturnsAsync((Photo?)null);
 
         // Act
         var result = await _controller.UpdatePhoto(photoId, photoUpdateDto);
@@ -450,6 +450,7 @@ public class PhotoControllerTests
         // Assert
         var internalServerErrorResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status500InternalServerError, internalServerErrorResult.StatusCode);
+        Assert.NotNull(internalServerErrorResult.Value);
         Assert.Equal(new { message = "An error occurred while updating the photo" }.ToString(), internalServerErrorResult.Value.ToString());
     }
 
@@ -505,7 +506,7 @@ public class PhotoControllerTests
         var userId = 1;
         var photoId = 1;
 
-        _mockService.Setup(s => s.GetPhotoFileAsync(photoId, userId)).ReturnsAsync((PhotoFileDto)null);
+        _mockService.Setup(s => s.GetPhotoFileAsync(photoId, userId)).ReturnsAsync((PhotoFileDto?)null);
 
         // Act
         var result = await _controller.DownloadPhoto(photoId);
@@ -513,6 +514,7 @@ public class PhotoControllerTests
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
         Assert.Equal(StatusCodes.Status404NotFound, notFoundResult.StatusCode);
+        Assert.NotNull(notFoundResult.Value);
         Assert.Equal(new { message = "Photo not found", photoId = photoId }.ToString(), notFoundResult.Value.ToString());
     }
 
@@ -562,7 +564,7 @@ public class PhotoControllerTests
         var userId = 1;
         var photoId = 1;
 
-        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo)null);
+        _mockService.Setup(s => s.GetPhotoAsync(photoId, userId)).ReturnsAsync((Photo?)null);
 
         // Act
         var result = await _controller.DeletePhoto(photoId);
@@ -570,6 +572,7 @@ public class PhotoControllerTests
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
         Assert.Equal(StatusCodes.Status404NotFound, notFoundResult.StatusCode);
+        Assert.NotNull(notFoundResult.Value);
         Assert.Equal(new { message = "Photo not found", photoId = photoId }.ToString(), notFoundResult.Value.ToString());
     }
 
@@ -620,7 +623,7 @@ public class PhotoControllerTests
         var userId = 1;
         var photoId = 1;
 
-        _mockService.Setup(s => s.UndoDeletePhotoAsync(photoId, userId)).ReturnsAsync((Photo)null);
+        _mockService.Setup(s => s.UndoDeletePhotoAsync(photoId, userId)).ReturnsAsync((Photo?)null);
 
         // Act
         var result = await _controller.UndoDeletePhoto(photoId);
@@ -628,6 +631,7 @@ public class PhotoControllerTests
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
         Assert.Equal(StatusCodes.Status404NotFound, notFoundResult.StatusCode);
+        Assert.NotNull(notFoundResult.Value);
         Assert.Equal(new { message = "Photo not found or not deleted", photoId = photoId }.ToString(), notFoundResult.Value.ToString());
     }
 

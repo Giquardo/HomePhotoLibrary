@@ -41,7 +41,7 @@
     public int PhotoId { get; set; }
 
     private PhotoDto updatedPhoto = new PhotoDto();
-    private string errorMessage;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,7 +64,7 @@
             var response = await Http.GetAsync($"api/photos/{PhotoId}");
             response.EnsureSuccessStatusCode();
 
-            updatedPhoto = await response.Content.ReadFromJsonAsync<PhotoDto>();
+            updatedPhoto = await response.Content.ReadFromJsonAsync<PhotoDto>() ?? new PhotoDto();
         }
         catch (Exception ex) when (ex.IsUnauthorized())
         {
@@ -135,7 +135,7 @@
     public class PhotoDto
     {
         public int AlbumId { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }

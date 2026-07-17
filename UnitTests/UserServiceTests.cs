@@ -111,7 +111,7 @@ namespace PhotoAlbumApi.Tests
         [Fact]
         public async Task CreateUserAsync_HashesRawPasswordBeforeSaving()
         {
-            User savedUser = null;
+            User? savedUser = null;
             _mockUserRepository.Setup(r => r.CreateUserAsync(It.IsAny<User>()))
                 .Callback<User>(u => savedUser = u)
                 .ReturnsAsync((User u) => u);
@@ -127,7 +127,7 @@ namespace PhotoAlbumApi.Tests
         [Fact]
         public async Task UpdateUserAsync_HashesRawPasswordBeforeSaving()
         {
-            User savedUser = null;
+            User? savedUser = null;
             _mockUserRepository.Setup(r => r.UpdateUserAsync(1, It.IsAny<User>()))
                 .Callback<int, User>((id, u) => savedUser = u)
                 .ReturnsAsync((int id, User u) => u);

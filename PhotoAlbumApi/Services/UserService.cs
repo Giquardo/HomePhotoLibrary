@@ -4,11 +4,11 @@ using PhotoAlbumApi.Repositories;
 namespace PhotoAlbumApi.Services;
 public interface IUserService
 {
-    Task<User> AuthenticateUserAsync(string username, string password);
-    Task<IEnumerable<User>> GetUsersAsync();
+    Task<User?> AuthenticateUserAsync(string username, string password);
+    Task<IEnumerable<User>?> GetUsersAsync();
     Task<User?> GetUserByIdAsync(int id);
     Task<User> CreateUserAsync(User user);
-    Task<User> UpdateUserAsync(int id, User user);
+    Task<User?> UpdateUserAsync(int id, User user);
     Task DeleteUserAsync(int id);
 }
 
@@ -30,7 +30,7 @@ public class UserService : IUserService
         _authenticationService = authenticationService;
     }
 
-    public async Task<User> AuthenticateUserAsync(string username, string password)
+    public async Task<User?> AuthenticateUserAsync(string username, string password)
     {
         var user = await _userRepository.GetUserByUsernameAsync(username);
 
@@ -67,7 +67,7 @@ public class UserService : IUserService
         return user;
     }
 
-    public async Task<IEnumerable<User>> GetUsersAsync()
+    public async Task<IEnumerable<User>?> GetUsersAsync()
     {
         return await _userRepository.GetUsersAsync();
     }
@@ -83,7 +83,7 @@ public class UserService : IUserService
         return await _userRepository.CreateUserAsync(user);
     }
 
-    public async Task<User> UpdateUserAsync(int id, User user)
+    public async Task<User?> UpdateUserAsync(int id, User user)
     {
         // Empty/null means "keep the existing password" - only hash and
         // overwrite when a new one was actually supplied.

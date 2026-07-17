@@ -34,11 +34,9 @@ public class Photo
     [MaxLength(64)]
     public string Hash { get; set; } = string.Empty;
 
-    // Navigation properties
+    // Navigation properties - always populated by EF's relationship fixup, never null at runtime
     [ForeignKey("AlbumId")]
-    public Album Album { get; set; }
+    public Album Album { get; set; } = null!;
 
     public bool IsDeleted { get; set; } = false; // Initialize with default value
-
-
 }

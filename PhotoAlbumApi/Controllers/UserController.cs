@@ -51,7 +51,7 @@ public class UserController : ControllerBase
     {
         _loggingService.LogInformation("Fetching all users");
 
-        if (!_cache.TryGetValue("AllUsers", out IEnumerable<User> users))
+        if (!_cache.TryGetValue("AllUsers", out IEnumerable<User>? users))
         {
             users = await _service.GetUsersAsync();
             if (users == null)
@@ -74,7 +74,7 @@ public class UserController : ControllerBase
     {
         _loggingService.LogInformation($"Fetching user with ID: {id}");
 
-        if (!_cache.TryGetValue($"User_{id}", out User user))
+        if (!_cache.TryGetValue($"User_{id}", out User? user))
         {
             user = await _service.GetUserByIdAsync(id);
             if (user == null)

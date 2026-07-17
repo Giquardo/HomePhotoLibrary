@@ -88,7 +88,7 @@ public class Program
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
         // Configure AutoMapper
-        builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+        builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile).Assembly);
 
         // Register the custom logging service as a singleton
         builder.Services.AddSingleton<ILoggingService, LoggingService>();

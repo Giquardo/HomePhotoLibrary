@@ -64,8 +64,9 @@ namespace PhotoAlbumApi.Tests
             Assert.NotNull(result);
             Assert.Equal(200, result.StatusCode);
 
+            Assert.NotNull(result.Value);
             var jsonObject = JObject.FromObject(result.Value);
-            Assert.Equal(token, jsonObject["token"].ToString());
+            Assert.Equal(token, jsonObject["token"]?.ToString());
 
             // Verify that methods were called as expected
             _mockUserService.Verify(s => s.AuthenticateUserAsync(loginModel.Username, loginModel.Password), Times.Once);
@@ -85,7 +86,7 @@ namespace PhotoAlbumApi.Tests
 
             // Mock the IUserService to return null for incorrect credentials
             _mockUserService.Setup(s => s.AuthenticateUserAsync(loginModel.Username, loginModel.Password))
-                .ReturnsAsync((User)null);
+                .ReturnsAsync((User?)null);
 
             // Act
             var result = await _controller.Login(loginModel) as ObjectResult;
@@ -94,6 +95,7 @@ namespace PhotoAlbumApi.Tests
             Assert.NotNull(result);
             Assert.Equal(401, result.StatusCode);
 
+            Assert.NotNull(result.Value);
             var jsonObject = JObject.FromObject(result.Value);
             Assert.Equal("Invalid username or password", jsonObject["message"]?.ToString());
 
@@ -127,7 +129,7 @@ namespace PhotoAlbumApi.Tests
             _mockMapper.Setup(m => m.Map<UserDisplayDto>(user)).Returns(userDisplayDto);
 
             // Setup the cache mock
-            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny)).Returns(false);
+            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny)).Returns(false);
             var mockCacheEntry = new Mock<ICacheEntry>();
             _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(mockCacheEntry.Object);
 
@@ -144,7 +146,7 @@ namespace PhotoAlbumApi.Tests
             _mockUserService.Verify(s => s.GetUserByIdAsync(userId), Times.Once);
             _mockMapper.Verify(m => m.Map<UserDisplayDto>(user), Times.Once);
             _mockLoggingService.Verify(l => l.LogInformation(It.IsAny<string>()), Times.AtLeast(2));
-            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny), Times.Once);
+            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny), Times.Once);
             _mockCache.Verify(c => c.CreateEntry(It.IsAny<object>()), Times.Once);
         }
 
@@ -154,10 +156,10 @@ namespace PhotoAlbumApi.Tests
             // Arrange
             var userId = 1;
 
-            _mockUserService.Setup(s => s.GetUserByIdAsync(userId)).ReturnsAsync((User)null);
+            _mockUserService.Setup(s => s.GetUserByIdAsync(userId)).ReturnsAsync((User?)null);
 
             // Setup the cache mock
-            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny)).Returns(false);
+            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny)).Returns(false);
 
             // Act
             var result = await _controller.GetUser(userId) as StatusCodeResult;
@@ -169,7 +171,7 @@ namespace PhotoAlbumApi.Tests
             // Verify that methods were called as expected
             _mockUserService.Verify(s => s.GetUserByIdAsync(userId), Times.Once);
             _mockLoggingService.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Once);
-            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny), Times.Once);
+            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny), Times.Once);
         }
 
         [Fact]
@@ -216,7 +218,7 @@ namespace PhotoAlbumApi.Tests
             _mockMapper.Setup(m => m.Map<IEnumerable<UserDisplayDto>>(users)).Returns(userDisplayDtos);
 
             // Setup the cache mock
-            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny)).Returns(false);
+            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny)).Returns(false);
             var mockCacheEntry = new Mock<ICacheEntry>();
             _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(mockCacheEntry.Object);
 
@@ -233,7 +235,7 @@ namespace PhotoAlbumApi.Tests
             _mockUserService.Verify(s => s.GetUsersAsync(), Times.Once);
             _mockMapper.Verify(m => m.Map<IEnumerable<UserDisplayDto>>(users), Times.Once);
             _mockLoggingService.Verify(l => l.LogInformation(It.IsAny<string>()), Times.Once);
-            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny), Times.Once);
+            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny), Times.Once);
             _mockCache.Verify(c => c.CreateEntry(It.IsAny<object>()), Times.Once);
         }
 
@@ -241,11 +243,11 @@ namespace PhotoAlbumApi.Tests
         public async Task GetAllUsers_NoUsersFound_ReturnsNotFound()
         {
             // Arrange
-            IEnumerable<User> users = null;
+            IEnumerable<User>? users = null;
             _mockUserService.Setup(s => s.GetUsersAsync()).ReturnsAsync(users);
 
             // Setup the cache mock
-            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny)).Returns(false);
+            _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny)).Returns(false);
 
             // Act
             var result = await _controller.GetAllUsers() as StatusCodeResult;
@@ -257,7 +259,7 @@ namespace PhotoAlbumApi.Tests
             // Verify that methods were called as expected
             _mockUserService.Verify(s => s.GetUsersAsync(), Times.Once);
             _mockLoggingService.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Once);
-            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny), Times.Once);
+            _mockCache.Verify(c => c.TryGetValue(It.IsAny<object>(), out It.Ref<object?>.IsAny), Times.Once);
         }
 
         [Fact]
@@ -338,7 +340,7 @@ namespace PhotoAlbumApi.Tests
                 IsAdmin = true
             };
 
-            _mockUserService.Setup(s => s.UpdateUserAsync(invalidUserId, It.IsAny<User>())).ReturnsAsync((User)null);
+            _mockUserService.Setup(s => s.UpdateUserAsync(invalidUserId, It.IsAny<User>())).ReturnsAsync((User?)null);
 
             // Act
             var result = await _controller.UpdateUser(invalidUserId, userDto);
@@ -458,7 +460,7 @@ namespace PhotoAlbumApi.Tests
             // Arrange
             var invalidUserId = 999;
 
-            _mockUserService.Setup(s => s.GetUserByIdAsync(invalidUserId)).ReturnsAsync((User)null);
+            _mockUserService.Setup(s => s.GetUserByIdAsync(invalidUserId)).ReturnsAsync((User?)null);
 
             // Act
             var result = await _controller.DeleteUser(invalidUserId);

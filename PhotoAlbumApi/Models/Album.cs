@@ -22,8 +22,8 @@ public class Album
     [ForeignKey("User")]
     public int UserId { get; set; }
 
-    // Navigation property for User
-    public User User { get; set; }
+    // Navigation property for User - always populated by EF's relationship fixup, never null at runtime
+    public User User { get; set; } = null!;
 
     // Soft delete properties
     public bool IsDeleted { get; set; } = false; // Initialize with default value

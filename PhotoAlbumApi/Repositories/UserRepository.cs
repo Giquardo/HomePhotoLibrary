@@ -10,7 +10,7 @@ public interface IUserRepository
     Task<User?> GetUserByUsernameAsync(string username);
     Task<User?> GetUserByIdAsync(int id);
     Task<User> CreateUserAsync(User user);
-    Task<User> UpdateUserAsync(int id, User user);
+    Task<User?> UpdateUserAsync(int id, User user);
     Task DeleteUserAsync(int id);
     Task SaveChangesAsync();
 }
@@ -52,7 +52,7 @@ public class UserRepository : IUserRepository
         return user;
     }
 
-    public async Task<User> UpdateUserAsync(int id, User user)
+    public async Task<User?> UpdateUserAsync(int id, User user)
     {
         var existingUser = await _context.Users.FindAsync(id);
         if (existingUser != null)

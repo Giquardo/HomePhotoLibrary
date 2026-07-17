@@ -13,14 +13,14 @@ public interface IPhotoAlbumService
     Task<Album> AddAlbumAsync(Album album);
     Task<Album?> UpdateAlbumAsync(Album album);
     Task DeleteAlbumAsync(int id, int userId);
-    Task<Album> UndoDeleteAlbumAsync(int id, int userId);
+    Task<Album?> UndoDeleteAlbumAsync(int id, int userId);
 
-    Task<IEnumerable<Photo>> GetPhotosAsync(int userId);
+    Task<IEnumerable<Photo>?> GetPhotosAsync(int userId);
     Task<Photo?> GetPhotoAsync(int id, int userId);
-    Task<Photo> AddPhotoAsync(Photo photo, string imageUrl = null, IFormFile file = null);
+    Task<Photo> AddPhotoAsync(Photo photo, string? imageUrl = null, IFormFile? file = null);
     Task<Photo?> UpdatePhotoAsync(Photo photo);
     Task DeletePhotoAsync(int id, int userId);
-    Task<Photo> UndoDeletePhotoAsync(int id, int userId);
+    Task<Photo?> UndoDeletePhotoAsync(int id, int userId);
     Task<PhotoFileDto?> GetPhotoFileAsync(int photoId, int userId);
 }
 
@@ -63,12 +63,12 @@ public class PhotoAlbumService : IPhotoAlbumService
         await _albumRepository.DeleteAlbumAsync(id, userId);
     }
 
-    public async Task<Album> UndoDeleteAlbumAsync(int id, int userId)
+    public async Task<Album?> UndoDeleteAlbumAsync(int id, int userId)
     {
         return await _albumRepository.UndoDeleteAlbumAsync(id, userId);
     }
 
-    public async Task<IEnumerable<Photo>> GetPhotosAsync(int userId)
+    public async Task<IEnumerable<Photo>?> GetPhotosAsync(int userId)
     {
         return await _photoRepository.GetPhotosAsync(userId);
     }
@@ -78,7 +78,7 @@ public class PhotoAlbumService : IPhotoAlbumService
         return await _photoRepository.GetPhotoByIdAsync(id, userId);
     }
 
-    public async Task<Photo> AddPhotoAsync(Photo photo, string imageUrl = null, IFormFile file = null)
+    public async Task<Photo> AddPhotoAsync(Photo photo, string? imageUrl = null, IFormFile? file = null)
     {
         if (!string.IsNullOrEmpty(imageUrl))
         {
@@ -134,7 +134,7 @@ public class PhotoAlbumService : IPhotoAlbumService
         await _photoRepository.DeletePhotoAsync(id, userId);
     }
 
-    public async Task<Photo> UndoDeletePhotoAsync(int id, int userId)
+    public async Task<Photo?> UndoDeletePhotoAsync(int id, int userId)
     {
         return await _photoRepository.UndoDeletePhotoAsync(id, userId);
     }

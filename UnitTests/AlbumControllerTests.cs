@@ -51,7 +51,7 @@ public class AlbumControllerTests
         _mockService.Setup(s => s.GetAlbumsAsync(userId)).ReturnsAsync(albums);
         _mockMapper.Setup(m => m.Map<IEnumerable<AlbumSummaryDto>>(albums)).Returns(albumDtos);
 
-        object cacheValue;
+        object? cacheValue;
         _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out cacheValue)).Returns(false);
         _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(Mock.Of<ICacheEntry>());
 
@@ -88,7 +88,7 @@ public class AlbumControllerTests
         _mockService.Setup(s => s.GetAlbumsAsync(userId)).ReturnsAsync(albums);
         _mockMapper.Setup(m => m.Map<IEnumerable<AlbumSummaryDto>>(albums)).Returns(albumDtos);
 
-        object cacheValue;
+        object? cacheValue;
         _mockCache.Setup(c => c.TryGetValue(It.IsAny<object>(), out cacheValue)).Returns(false);
         _mockCache.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(Mock.Of<ICacheEntry>());
 
@@ -134,7 +134,7 @@ public class AlbumControllerTests
         var albumId = 1;
         var cacheKey = $"GetAlbumV1_{userId}_{albumId}";
 
-        _mockService.Setup(x => x.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album)null);
+        _mockService.Setup(x => x.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album?)null);
 
         // Mock cache entry
         var mockCacheEntry = new Mock<ICacheEntry>();
@@ -248,7 +248,7 @@ public class AlbumControllerTests
     public async Task UpdateAlbum_InvalidAlbumData_ReturnsBadRequest()
     {
         // Arrange
-        AlbumDto invalidAlbumDto = null; // Simulating invalid album data by setting it to null
+        AlbumDto? invalidAlbumDto = null; // Simulating invalid album data by setting it to null
 
         // Act
         var result = await _controller.UpdateAlbum(1, invalidAlbumDto);
@@ -267,7 +267,7 @@ public class AlbumControllerTests
         var validAlbumDto = new AlbumDto { Title = "Test Album", Description = "Test Description" };
 
         // Mock the service to return null for the album
-        _mockService.Setup(s => s.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album)null);
+        _mockService.Setup(s => s.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album?)null);
 
         // Act
         var result = await _controller.UpdateAlbum(albumId, validAlbumDto);
@@ -289,7 +289,7 @@ public class AlbumControllerTests
         _mockService.Setup(s => s.GetAlbumAsync(albumId, userId)).ReturnsAsync(new Album { Id = albumId, UserId = userId });
 
         // Mock the service to return null for the update, simulating an internal server error
-        _mockService.Setup(s => s.UpdateAlbumAsync(It.IsAny<Album>())).ReturnsAsync((Album)null);
+        _mockService.Setup(s => s.UpdateAlbumAsync(It.IsAny<Album>())).ReturnsAsync((Album?)null);
 
         // Act
         var result = await _controller.UpdateAlbum(albumId, validAlbumDto);
@@ -349,7 +349,7 @@ public class AlbumControllerTests
         // Arrange
         var albumId = 1;
         var userId = 1;
-        _mockService.Setup(s => s.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album)null);
+        _mockService.Setup(s => s.GetAlbumAsync(albumId, userId)).ReturnsAsync((Album?)null);
 
         // Act
         var result = await _controller.DeleteAlbum(albumId);
@@ -404,7 +404,7 @@ public class AlbumControllerTests
         // Arrange
         var albumId = 1;
         var userId = 1;
-        _mockService.Setup(s => s.UndoDeleteAlbumAsync(albumId, userId)).ReturnsAsync((Album)null);
+        _mockService.Setup(s => s.UndoDeleteAlbumAsync(albumId, userId)).ReturnsAsync((Album?)null);
 
         // Act
         var result = await _controller.UndoDeleteAlbum(albumId);

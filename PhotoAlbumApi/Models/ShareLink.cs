@@ -26,6 +26,7 @@ public class ShareLink
 
     public DateTime? RevokedAtUtc { get; set; }
 
+    // Always populated by EF's relationship fixup, never null at runtime
     [ForeignKey("AlbumId")]
-    public Album Album { get; set; }
+    public Album Album { get; set; } = null!;
 }

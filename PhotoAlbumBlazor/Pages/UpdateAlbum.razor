@@ -22,7 +22,7 @@
         Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         try
         {
-            album = await Http.GetFromJsonAsync<AlbumSummaryDto>($"api/v1/albums/{AlbumId}");
+            album = await Http.GetFromJsonAsync<AlbumSummaryDto>($"api/v1/albums/{AlbumId}") ?? new AlbumSummaryDto();
         }
         catch (Exception ex) when (ex.IsUnauthorized())
         {

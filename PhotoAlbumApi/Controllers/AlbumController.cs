@@ -60,7 +60,7 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Version: 1.0 - Fetching all albums for user {userId}");
 
                 var cacheKey = $"GetAlbumsV1_{userId}";
-                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumSummaryDtos))
+                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto>? albumSummaryDtos))
                 {
                     var albums = await _service.GetAlbumsAsync(userId);
                     albumSummaryDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
@@ -92,7 +92,7 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Version: 2.0 - Fetching all albums for user {userId}");
 
                 var cacheKey = $"GetAlbumsV2_{userId}";
-                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto> albumDetailDtos))
+                if (!_cache.TryGetValue(cacheKey, out IEnumerable<AlbumSummaryDto>? albumDetailDtos))
                 {
                     var albums = await _service.GetAlbumsAsync(userId);
                     albumDetailDtos = _mapper.Map<IEnumerable<AlbumSummaryDto>>(albums);
@@ -124,7 +124,7 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Version: 1.0 - Fetching album with ID: {id} for user {userId}");
 
                 var cacheKey = $"GetAlbumV1_{userId}_{id}";
-                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumSummaryDto))
+                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto? albumSummaryDto))
                 {
                     var album = await _service.GetAlbumAsync(id, userId);
                     if (album is not null)
@@ -165,7 +165,7 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Version: 2.0 - Fetching album with ID: {id} for user {userId}");
 
                 var cacheKey = $"GetAlbumV2_{userId}_{id}";
-                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto albumDto))
+                if (!_cache.TryGetValue(cacheKey, out AlbumSummaryDto? albumDto))
                 {
                     var album = await _service.GetAlbumAsync(id, userId);
                     if (album is not null)
@@ -233,7 +233,7 @@ namespace PhotoAlbumApi.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAlbum(int id, AlbumDto albumDto)
+        public async Task<IActionResult> UpdateAlbum(int id, AlbumDto? albumDto)
         {
             try
             {

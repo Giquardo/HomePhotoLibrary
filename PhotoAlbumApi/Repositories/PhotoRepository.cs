@@ -11,7 +11,7 @@ public interface IPhotoRepository
     Task<Photo> AddPhotoAsync(Photo photo);
     Task<Photo?> UpdatePhotoAsync(Photo photo);
     Task DeletePhotoAsync(int id, int userId);
-    Task<Photo> UndoDeletePhotoAsync(int id, int userId);
+    Task<Photo?> UndoDeletePhotoAsync(int id, int userId);
     Task<Photo?> GetPhotoByHashAsync(string hash);
 
 }
@@ -84,7 +84,7 @@ public class PhotoRepository : IPhotoRepository
         }
     }
 
-    public async Task<Photo> UndoDeletePhotoAsync(int id, int userId)
+    public async Task<Photo?> UndoDeletePhotoAsync(int id, int userId)
     {
         var photo = await _context.Photos.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
         if (photo != null && photo.IsDeleted)

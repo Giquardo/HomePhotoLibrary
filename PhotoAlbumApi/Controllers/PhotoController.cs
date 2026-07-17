@@ -59,7 +59,7 @@ namespace PhotoAlbumApi.Controllers
                 _loggingService.LogInformation($"Fetching all photos for user {userId}");
 
                 var cacheKey = $"GetPhotos_{userId}";
-                if (!_cache.TryGetValue(cacheKey, out IEnumerable<PhotoDisplayDto> photoDtos))
+                if (!_cache.TryGetValue(cacheKey, out IEnumerable<PhotoDisplayDto>? photoDtos))
                 {
                     var photos = await _service.GetPhotosAsync(userId);
                     if (photos == null)
@@ -93,7 +93,7 @@ namespace PhotoAlbumApi.Controllers
                 var userId = GetUserId();
                 _loggingService.LogInformation($"Fetching photo with ID: {id} for user {userId}");
                 var cacheKey = $"GetPhoto_{userId}_{id}";
-                if (!_cache.TryGetValue(cacheKey, out PhotoDisplayDto photoDto))
+                if (!_cache.TryGetValue(cacheKey, out PhotoDisplayDto? photoDto))
                 {
                     var photo = await _service.GetPhotoAsync(id, userId);
                     if (photo == null)
@@ -211,7 +211,7 @@ namespace PhotoAlbumApi.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdatePhoto(int id, PhotoUpdateDto photoUpdateDto)
+        public async Task<IActionResult> UpdatePhoto(int id, PhotoUpdateDto? photoUpdateDto)
         {
             try
             {
