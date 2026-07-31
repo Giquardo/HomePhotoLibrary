@@ -1,0 +1,123 @@
+@page "/storage"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@using Blazored.LocalStorage
+
+<h3>Storage Usage</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (usage == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="storage-wrapper">
+        <div class="storage-card">
+            <h4>Photo Storage</h4>
+            <p class="storage-size">@FormatBytes(usage.PhotoStorageBytes)</p>
+            <p class="storage-count">@usage.PhotoStorageFileCount file(s)</p>
+        </div>
+        <div class="storage-card">
+            <h4>Backup Storage</h4>
+            <p class="storage-size">@FormatBytes(usage.BackupStorageBytes)</p>
+            <p class="storage-count">@usage.BackupStorageFileCount file(s)</p>
+        </div>
+    </div>
+}
+
+<style>
+    .storage-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .storage-card {
+        flex: 1;
+        min-width: 220px;
+        padding: 20px;
+        border-radius: 5px;
+        background-color: #f0f0f0;
+        text-align: center;
+    }
+
+    .storage-card h4 {
+        margin: 0 0 10px;
+    }
+
+    .storage-size {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .storage-count {
+        margin: 5px 0 0;
+        color: #555;
+    }
+
+    .alert {
+        margin-top: 20px;
+    }
+</style>
+
+@code {
+    private StorageUsageDto? usage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        if (!JwtClaimsHelper.IsAdmin(token))
+        {
+            Navigation.NavigateTo("/albums");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            usage = await Http.GetFromJsonAsync<StorageUsageDto>("api/storage");
+        }
+        catch (Exception ex) when (ex.IsUnauthorized())
+        {
+            await AuthErrorHelper.HandleUnauthorizedAsync(LocalStorage, Navigation);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        double size = bytes;
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+        return $"{size:0.#} {units[unitIndex]}";
+    }
+
+    public class StorageUsageDto
+    {
+        public long PhotoStorageBytes { get; set; }
+        public int PhotoStorageFileCount { get; set; }
+        public long BackupStorageBytes { get; set; }
+        public int BackupStorageFileCount { get; set; }
+    }
+}

@@ -25,10 +25,12 @@ services:
       ConnectionStrings__DefaultConnection: "Server=db;Port=3306;Database=${MYSQL_DATABASE:-photoalbum};Uid=${MYSQL_USER:-photoalbum};Pwd=${MYSQL_PASSWORD};"
       Storage__BasePath: /app/Data/Files
       Logging__BasePath: /app/Logs
+      Backup__BasePath: /app/Data/Backups
     volumes:
       - api-images:/app/Data/Files
       - api-logs:/app/Logs
       - api-dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+      - ./backups:/app/Data/Backups:ro
     depends_on:
       db:
         condition: service_healthy
