@@ -37,6 +37,7 @@ All services sit on an internal Docker network; only `proxy` publishes host port
 - **Users**: a handful of family accounts, admin-created only. No self-registration. On first startup, if the `Users` table is empty, one admin account is bootstrapped from `ADMIN_USERNAME`/`ADMIN_PASSWORD`.
 - **Tokens**: short-lived JWT access tokens (no refresh tokens yet — re-login when they expire).
 - **Uploads**: random server-side (GUID) filenames, a size cap, and file-type validation by magic bytes rather than trusting the client's extension/Content-Type.
+- **Thumbnails**: generation is bounded against decompression-bomb-style files (small on-disk size, maliciously huge declared pixel dimensions) via an ImageSharp memory allocation cap; a file that would exceed it falls back to serving the original instead of ballooning API memory.
 - **Image-by-URL**: SSRF-guarded — blocks private/loopback/link-local/reserved IP ranges (including on every redirect hop, not just the initial request) before making any outbound call.
 - **Rate limiting**: per-IP fixed-window limits on `/api/users/login` and the public share endpoints.
 - **Secrets**: JWT signing key, DB connection string, and admin bootstrap credentials all come from environment variables (`.env`, gitignored). The API fails fast at startup if the JWT key is missing or under 32 bytes.
@@ -50,6 +51,9 @@ All services sit on an internal Docker network; only `proxy` publishes host port
 - Lightbox viewer, search, pagination, bulk delete, drag-and-drop upload
 - Global "all photos" gallery across albums
 - Shareable, revocable album links (public, unauthenticated access via an opaque token — deliberately not behind `[Authorize]`)
+- Thumbnails: grid/preview views use a small generated JPEG instead of the full-resolution original; the lightbox and downloads still use the original. Generated on first request and cached to disk.
+- Trash auto-purge: soft-deleted albums/photos (and their thumbnails) are permanently deleted after a retention window (default 30 days, `Trash__RetentionDays`)
+- Storage-usage dashboard (admin-only): shows total size and file count for both uploaded-photo storage and backup storage
 - Admin user management (create/update/delete family accounts)
 - Structured request logging with per-request correlation IDs (`X-Correlation-Id` response header, tied together in the logs)
 - `/health` endpoint for container healthchecks
@@ -63,8 +67,9 @@ All routes are under `/api`. Endpoints without a note below require a `Bearer` J
 | Auth | `POST /api/users/login` *(no auth required)* |
 | Users | `GET /api/users`, `GET /api/users/{id}`, `POST /api/users`, `PUT /api/users/{id}`, `DELETE /api/users/{id}` — all admin-only |
 | Albums | `GET/POST /api/v{version}/albums`, `GET/PUT /api/v{version}/albums/{id}`, `DELETE /api/v{version}/albums/{id}`, `PUT /api/v{version}/albums/undo-delete/{id}` (v1 and v2 both supported) |
-| Photos | `GET/POST /api/photos`, `POST /api/photos/upload`, `GET /api/photos/{id}`, `PUT /api/photos/{id}`, `GET /api/photos/download/{id}`, `DELETE /api/photos/{id}`, `PUT /api/photos/undo-delete/{id}` |
-| Sharing | `POST /api/shares`, `GET /api/shares` (your own links), `DELETE /api/shares/{token}` — authenticated. `GET /api/shares/{token}` and `GET /api/shares/{token}/photos/{photoId}` — public, token-gated |
+| Photos | `GET/POST /api/photos`, `POST /api/photos/upload`, `GET /api/photos/{id}`, `PUT /api/photos/{id}`, `GET /api/photos/download/{id}`, `GET /api/photos/thumbnail/{id}`, `DELETE /api/photos/{id}`, `PUT /api/photos/undo-delete/{id}` |
+| Sharing | `POST /api/shares`, `GET /api/shares` (your own links), `DELETE /api/shares/{token}` — authenticated. `GET /api/shares/{token}`, `GET /api/shares/{token}/photos/{photoId}`, `GET /api/shares/{token}/photos/{photoId}/thumbnail` — public, token-gated |
+| Storage | `GET /api/storage` — admin-only, photo/backup storage usage |
 | Ops | `GET /health` |
 
 Full request/response shapes are documented via Swagger UI at `/swagger` when the API is running.
@@ -95,7 +100,7 @@ dotnet run --project PhotoAlbumApi
 
 ## Backups
 
-The `backup` service runs nightly `mysqldump` plus a copy of the uploaded-images volume to `./backups` (gitignored — contains real data). Retention is controlled by `BACKUP_RETENTION_DAYS`. See [BACKUP.md](BACKUP.md) for restore instructions.
+The `backup` service runs nightly `mysqldump` plus a copy of the uploaded-images volume to `./backups` (gitignored — contains real data). Retention is controlled by `BACKUP_RETENTION_DAYS`. The `api` container also mounts `./backups` read-only so the storage-usage dashboard can report its size. See [BACKUP.md](BACKUP.md) for restore instructions.
 
 ## Testing
 
