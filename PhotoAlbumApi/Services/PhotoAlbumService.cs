@@ -22,6 +22,7 @@ public interface IPhotoAlbumService
     Task DeletePhotoAsync(int id, int userId);
     Task<Photo?> UndoDeletePhotoAsync(int id, int userId);
     Task<PhotoFileDto?> GetPhotoFileAsync(int photoId, int userId);
+    Task<PhotoFileDto?> GetPhotoThumbnailAsync(int photoId, int userId);
 }
 
 public class PhotoAlbumService : IPhotoAlbumService
@@ -156,6 +157,29 @@ public class PhotoAlbumService : IPhotoAlbumService
             FileData = fileBytes,
             FileName = fileName,
             ContentType = GetContentType(photo.Extension)
+        };
+    }
+
+    public async Task<PhotoFileDto?> GetPhotoThumbnailAsync(int photoId, int userId)
+    {
+        var photo = await _photoRepository.GetPhotoByIdAsync(photoId, userId);
+        if (photo == null || photo.IsDeleted)
+        {
+            return null;
+        }
+
+        var thumbnailPath = await _imageService.GetOrCreateThumbnailAsync(photo.FilePath);
+        var isRealThumbnail = thumbnailPath != photo.FilePath;
+        var fileBytes = await File.ReadAllBytesAsync(thumbnailPath);
+
+        return new PhotoFileDto
+        {
+            Photo = photo,
+            FileData = fileBytes,
+            FileName = isRealThumbnail
+                ? $"{photo.Title.Replace(" ", "_")}_thumb.jpg"
+                : $"{photo.Title.Replace(" ", "_")}{photo.Extension}",
+            ContentType = isRealThumbnail ? "image/jpeg" : GetContentType(photo.Extension)
         };
     }
 

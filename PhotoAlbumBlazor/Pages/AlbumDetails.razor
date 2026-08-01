@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
+@inject IJSRuntime JS
 @using Blazored.LocalStorage
 @using Microsoft.AspNetCore.Components.Web
 @using System.Net.Http.Json
@@ -13,7 +14,8 @@
     private const int PageSize = 12;
 
     private AlbumDetailDto? album;
-    private readonly Dictionary<int, string> photoSources = new();
+    private readonly Dictionary<int, string> photoThumbnailSources = new();
+    private readonly Dictionary<int, string> photoFullSources = new();
     private string searchText = string.Empty;
     private int currentPage = 1;
     private readonly HashSet<int> selectedPhotoIds = new();
@@ -85,19 +87,25 @@
 
     private async Task LoadCurrentPageImagesAsync()
     {
-        var toLoad = PagedPhotos.Where(p => !photoSources.ContainsKey(p.Id));
-        await Task.WhenAll(toLoad.Select(LoadPhotoImageAsync));
+        var toLoad = PagedPhotos.Where(p => !photoThumbnailSources.ContainsKey(p.Id));
+        await Task.WhenAll(toLoad.Select(LoadThumbnailAsync));
     }
 
-    private async Task LoadPhotoImageAsync(Photo photo)
+    private Task LoadThumbnailAsync(Photo photo) =>
+        LoadPhotoBytesAsync($"api/photos/thumbnail/{photo.Id}", photo.Id, photoThumbnailSources);
+
+    private Task LoadFullPhotoAsync(Photo photo) =>
+        LoadPhotoBytesAsync($"api/photos/download/{photo.Id}", photo.Id, photoFullSources);
+
+    private async Task LoadPhotoBytesAsync(string requestUri, int photoId, Dictionary<int, string> destination)
     {
-        if (photoSources.ContainsKey(photo.Id))
+        if (destination.ContainsKey(photoId))
         {
             return;
         }
         try
         {
-            var response = await Http.GetAsync($"api/photos/download/{photo.Id}");
+            var response = await Http.GetAsync(requestUri);
             if (!response.IsSuccessStatusCode)
             {
                 return;
@@ -105,7 +113,7 @@
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
-            photoSources[photo.Id] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+            destination[photoId] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
         }
         catch
         {
@@ -113,9 +121,23 @@
         }
     }
 
-    private string GetPhotoSrc(int photoId) => photoSources.TryGetValue(photoId, out var src) ? src : string.Empty;
+    private string GetPhotoSrc(int photoId) => photoThumbnailSources.TryGetValue(photoId, out var src) ? src : string.Empty;
+
+    // Falls back to the (already-loaded) thumbnail while the full-resolution
+    // fetch is in flight, so the lightbox shows something instead of a blank.
+    private string GetLightboxSrc(int photoId) =>
+        photoFullSources.TryGetValue(photoId, out var full) ? full : GetPhotoSrc(photoId);
 
     private string GetDownloadFilename(Photo photo) => $"{photo.Title.Replace(' ', '_')}{photo.Extension}";
+
+    private async Task DownloadPhotoAsync(Photo photo)
+    {
+        await LoadFullPhotoAsync(photo);
+        if (photoFullSources.TryGetValue(photo.Id, out var dataUrl))
+        {
+            await JS.InvokeVoidAsync("downloadHelper.saveDataUrl", dataUrl, GetDownloadFilename(photo));
+        }
+    }
 
     private void NavigateToUpdatePhoto(int photoId)
     {
@@ -240,7 +262,8 @@
             {
                 album!.Photos.Remove(toRemove);
             }
-            photoSources.Remove(photoId);
+            photoThumbnailSources.Remove(photoId);
+            photoFullSources.Remove(photoId);
             selectedPhotoIds.Remove(photoId);
             confirmingDeleteId = null;
 
@@ -308,7 +331,8 @@
             }
             foreach (var id in ids)
             {
-                photoSources.Remove(id);
+                photoThumbnailSources.Remove(id);
+                photoFullSources.Remove(id);
                 selectedPhotoIds.Remove(id);
             }
             confirmingBulkDelete = false;
@@ -340,7 +364,7 @@
         }
         lightboxIndex = index;
         isLightboxOpen = true;
-        await LoadPhotoImageAsync(photos[lightboxIndex]);
+        await LoadFullPhotoAsync(photos[lightboxIndex]);
         await lightboxRef.FocusAsync();
     }
 
@@ -361,7 +385,7 @@
         if (lightboxIndex < photos.Count - 1)
         {
             lightboxIndex++;
-            await LoadPhotoImageAsync(photos[lightboxIndex]);
+            await LoadFullPhotoAsync(photos[lightboxIndex]);
         }
     }
 
@@ -371,7 +395,7 @@
         if (lightboxIndex > 0)
         {
             lightboxIndex--;
-            await LoadPhotoImageAsync(photos[lightboxIndex]);
+            await LoadFullPhotoAsync(photos[lightboxIndex]);
         }
     }
 
@@ -545,7 +569,7 @@ else
                             <p>@photo.Extension</p>
                             <div class="photo-actions">
                                 <button class="btn btn-primary" @onclick="() => NavigateToUpdatePhoto(photo.Id)">Update</button>
-                                <a class="btn btn-secondary" href="@GetPhotoSrc(photo.Id)" download="@GetDownloadFilename(photo)">Download</a>
+                                <button class="btn btn-secondary" @onclick="() => DownloadPhotoAsync(photo)">Download</button>
                                 @if (confirmingDeleteId == photo.Id)
                                 {
                                     <button class="btn btn-danger" @onclick="() => ConfirmDelete(photo.Id)">Confirm</button>
@@ -575,11 +599,11 @@ else
             <div class="lightbox-content" @onclick:stopPropagation="true">
                 <button class="lightbox-close" @onclick="CloseLightbox">✕</button>
                 <button class="lightbox-nav lightbox-prev" disabled="@(lightboxIndex <= 0)" @onclick="LightboxPrev">‹</button>
-                <img src="@GetPhotoSrc(LightboxPhoto.Id)" alt="@LightboxPhoto.Title" class="lightbox-image" />
+                <img src="@GetLightboxSrc(LightboxPhoto.Id)" alt="@LightboxPhoto.Title" class="lightbox-image" />
                 <button class="lightbox-nav lightbox-next" disabled="@(lightboxIndex >= FilteredPhotos.Count - 1)" @onclick="LightboxNext">›</button>
                 <div class="lightbox-caption">
                     <p>@LightboxPhoto.Title</p>
-                    <a class="btn btn-secondary" href="@GetPhotoSrc(LightboxPhoto.Id)" download="@GetDownloadFilename(LightboxPhoto)">Download</a>
+                    <button class="btn btn-secondary" @onclick="() => DownloadPhotoAsync(LightboxPhoto)">Download</button>
                 </div>
             </div>
         </div>

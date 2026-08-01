@@ -47,6 +47,7 @@ public class TrashCleanupService : ITrashCleanupService
             foreach (var photo in album.Photos)
             {
                 _imageService.DeleteFile(photo.FilePath);
+                _imageService.DeleteFile(_imageService.GetThumbnailPath(photo.FilePath));
             }
 
             await _albumRepository.PurgeAlbumAsync(album);
@@ -59,6 +60,7 @@ public class TrashCleanupService : ITrashCleanupService
         foreach (var photo in photos)
         {
             _imageService.DeleteFile(photo.FilePath);
+            _imageService.DeleteFile(_imageService.GetThumbnailPath(photo.FilePath));
             await _photoRepository.PurgePhotoAsync(photo);
             photosPurged++;
         }

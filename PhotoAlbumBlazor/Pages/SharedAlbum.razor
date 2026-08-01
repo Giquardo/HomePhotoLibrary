@@ -1,6 +1,7 @@
 @page "/share/{token}"
 @layout PublicLayout
 @inject HttpClient Http
+@inject IJSRuntime JS
 @using System.Net.Http.Json
 
 <div class="shared-album-page">
@@ -39,7 +40,7 @@
                         {
                             <p class="photo-description">@photo.Description</p>
                         }
-                        <a class="btn btn-secondary" href="@GetPhotoSrc(photo.Id)" download="@GetDownloadFilename(photo)">Download</a>
+                        <button class="btn btn-secondary" @onclick="() => DownloadPhotoAsync(photo)">Download</button>
                     </div>
                 }
             </div>
@@ -119,7 +120,8 @@
 
     private SharedAlbumDto? album;
     private bool isLoading = true;
-    private readonly Dictionary<int, string> photoSources = new();
+    private readonly Dictionary<int, string> photoThumbnailSources = new();
+    private readonly Dictionary<int, string> photoFullSources = new();
 
     // Deliberately does not check authToken/local storage at all - this page
     // is for anonymous visitors. Access is gated entirely by the token in
@@ -134,7 +136,7 @@
                 album = await response.Content.ReadFromJsonAsync<SharedAlbumDto>();
                 if (album != null)
                 {
-                    await Task.WhenAll(album.Photos.Select(LoadPhotoImageAsync));
+                    await Task.WhenAll(album.Photos.Select(LoadThumbnailAsync));
                 }
             }
         }
@@ -148,11 +150,21 @@
         }
     }
 
-    private async Task LoadPhotoImageAsync(SharedPhotoDto photo)
+    private Task LoadThumbnailAsync(SharedPhotoDto photo) =>
+        LoadPhotoBytesAsync($"api/shares/{Token}/photos/{photo.Id}/thumbnail", photo.Id, photoThumbnailSources);
+
+    private Task LoadFullPhotoAsync(SharedPhotoDto photo) =>
+        LoadPhotoBytesAsync($"api/shares/{Token}/photos/{photo.Id}", photo.Id, photoFullSources);
+
+    private async Task LoadPhotoBytesAsync(string requestUri, int photoId, Dictionary<int, string> destination)
     {
+        if (destination.ContainsKey(photoId))
+        {
+            return;
+        }
         try
         {
-            var response = await Http.GetAsync($"api/shares/{Token}/photos/{photo.Id}");
+            var response = await Http.GetAsync(requestUri);
             if (!response.IsSuccessStatusCode)
             {
                 return;
@@ -160,7 +172,7 @@
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
-            photoSources[photo.Id] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+            destination[photoId] = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
         }
         catch
         {
@@ -168,9 +180,18 @@
         }
     }
 
-    private string GetPhotoSrc(int photoId) => photoSources.TryGetValue(photoId, out var src) ? src : string.Empty;
+    private string GetPhotoSrc(int photoId) => photoThumbnailSources.TryGetValue(photoId, out var src) ? src : string.Empty;
 
     private string GetDownloadFilename(SharedPhotoDto photo) => $"{photo.Title.Replace(' ', '_')}{photo.Extension}";
+
+    private async Task DownloadPhotoAsync(SharedPhotoDto photo)
+    {
+        await LoadFullPhotoAsync(photo);
+        if (photoFullSources.TryGetValue(photo.Id, out var dataUrl))
+        {
+            await JS.InvokeVoidAsync("downloadHelper.saveDataUrl", dataUrl, GetDownloadFilename(photo));
+        }
+    }
 
     public class SharedAlbumDto
     {

@@ -12,17 +12,20 @@ public interface IShareLinkService
     Task<bool> RevokeShareLinkAsync(string token, int ownerUserId);
     Task<Album?> GetSharedAlbumAsync(string token);
     Task<PhotoFileDto?> GetSharedPhotoFileAsync(string token, int photoId);
+    Task<PhotoFileDto?> GetSharedPhotoThumbnailAsync(string token, int photoId);
 }
 
 public class ShareLinkService : IShareLinkService
 {
     private readonly IShareLinkRepository _shareLinkRepository;
     private readonly IAlbumRepository _albumRepository;
+    private readonly IImageService _imageService;
 
-    public ShareLinkService(IShareLinkRepository shareLinkRepository, IAlbumRepository albumRepository)
+    public ShareLinkService(IShareLinkRepository shareLinkRepository, IAlbumRepository albumRepository, IImageService imageService)
     {
         _shareLinkRepository = shareLinkRepository;
         _albumRepository = albumRepository;
+        _imageService = imageService;
     }
 
     public async Task<ShareLink?> CreateShareLinkAsync(int albumId, int ownerUserId, int expiresInHours)
@@ -98,6 +101,36 @@ public class ShareLinkService : IShareLinkService
             FileData = fileBytes,
             FileName = $"{photo.Title.Replace(" ", "_")}{photo.Extension}",
             ContentType = GetContentType(photo.Extension)
+        };
+    }
+
+    public async Task<PhotoFileDto?> GetSharedPhotoThumbnailAsync(string token, int photoId)
+    {
+        var shareLink = await GetValidShareLinkAsync(token);
+        if (shareLink == null)
+        {
+            return null;
+        }
+
+        var album = await _albumRepository.GetAlbumByIdIgnoringOwnerAsync(shareLink.AlbumId);
+        var photo = album?.Photos.FirstOrDefault(p => p.Id == photoId && !p.IsDeleted);
+        if (photo == null)
+        {
+            return null;
+        }
+
+        var thumbnailPath = await _imageService.GetOrCreateThumbnailAsync(photo.FilePath);
+        var isRealThumbnail = thumbnailPath != photo.FilePath;
+        var fileBytes = await File.ReadAllBytesAsync(thumbnailPath);
+
+        return new PhotoFileDto
+        {
+            Photo = photo,
+            FileData = fileBytes,
+            FileName = isRealThumbnail
+                ? $"{photo.Title.Replace(" ", "_")}_thumb.jpg"
+                : $"{photo.Title.Replace(" ", "_")}{photo.Extension}",
+            ContentType = isRealThumbnail ? "image/jpeg" : GetContentType(photo.Extension)
         };
     }
 

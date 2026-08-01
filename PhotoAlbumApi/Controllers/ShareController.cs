@@ -161,4 +161,17 @@ public class ShareController : ControllerBase
 
         return File(photoFile.FileData, photoFile.ContentType, photoFile.FileName);
     }
+
+    [HttpGet("{token}/photos/{photoId}/thumbnail")]
+    [EnableRateLimiting("share")]
+    public async Task<IActionResult> GetSharedPhotoThumbnail(string token, int photoId)
+    {
+        var photoFile = await _service.GetSharedPhotoThumbnailAsync(token, photoId);
+        if (photoFile == null)
+        {
+            return NotFound(new { message = "Photo not found or share link is invalid." });
+        }
+
+        return File(photoFile.FileData, photoFile.ContentType, photoFile.FileName);
+    }
 }

@@ -128,6 +128,64 @@ namespace PhotoAlbumApi.Tests
         }
 
         [Fact]
+        public void GetThumbnailPath_ReturnsJpegPathUnderThumbnailsSubfolder()
+        {
+            var service = CreateService();
+            var originalPath = Path.Combine(_tempDir, "original.png");
+
+            var thumbnailPath = service.GetThumbnailPath(originalPath);
+
+            Assert.Equal(Path.Combine(_tempDir, "Thumbnails", "original.jpg"), thumbnailPath);
+        }
+
+        [Fact]
+        public async Task GetOrCreateThumbnailAsync_ValidImage_CreatesJpegThumbnail()
+        {
+            var service = CreateService();
+            var originalPath = Path.Combine(_tempDir, "original.png");
+            Directory.CreateDirectory(_tempDir);
+            await File.WriteAllBytesAsync(originalPath, ValidPngBytes);
+
+            var thumbnailPath = await service.GetOrCreateThumbnailAsync(originalPath);
+
+            Assert.NotEqual(originalPath, thumbnailPath);
+            Assert.True(File.Exists(thumbnailPath));
+            var bytes = await File.ReadAllBytesAsync(thumbnailPath);
+            Assert.True(bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8, "Thumbnail should start with the JPEG magic bytes.");
+        }
+
+        [Fact]
+        public async Task GetOrCreateThumbnailAsync_CalledTwice_ReusesCachedFileWithoutRegenerating()
+        {
+            var service = CreateService();
+            var originalPath = Path.Combine(_tempDir, "original.png");
+            Directory.CreateDirectory(_tempDir);
+            await File.WriteAllBytesAsync(originalPath, ValidPngBytes);
+
+            var firstPath = await service.GetOrCreateThumbnailAsync(originalPath);
+            var firstWriteTime = File.GetLastWriteTimeUtc(firstPath);
+
+            var secondPath = await service.GetOrCreateThumbnailAsync(originalPath);
+            var secondWriteTime = File.GetLastWriteTimeUtc(secondPath);
+
+            Assert.Equal(firstPath, secondPath);
+            Assert.Equal(firstWriteTime, secondWriteTime);
+        }
+
+        [Fact]
+        public async Task GetOrCreateThumbnailAsync_UnrecognizedFormat_ReturnsOriginalPathWithoutThrowing()
+        {
+            var service = CreateService();
+            var originalPath = Path.Combine(_tempDir, "not-an-image.dat");
+            Directory.CreateDirectory(_tempDir);
+            await File.WriteAllBytesAsync(originalPath, new byte[] { 0x00, 0x01, 0x02, 0x03 });
+
+            var resultPath = await service.GetOrCreateThumbnailAsync(originalPath);
+
+            Assert.Equal(originalPath, resultPath);
+        }
+
+        [Fact]
         public async Task DownloadImageAsync_PrivateIpTarget_ThrowsWithoutMakingAnyHttpCall()
         {
             // Would still 200 if actually called - the point is asserting on

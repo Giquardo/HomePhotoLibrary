@@ -538,6 +538,69 @@ public class PhotoControllerTests
     }
 
     [Fact]
+    public async Task GetPhotoThumbnail_ReturnsFileResult_WhenPhotoExists()
+    {
+        // Arrange
+        var userId = 1;
+        var photoId = 1;
+        var photoFileDto = new PhotoFileDto
+        {
+            FileData = new byte[] { 4, 5, 6 },
+            ContentType = "image/jpeg",
+            FileName = "photo_thumb.jpg"
+        };
+
+        _mockService.Setup(s => s.GetPhotoThumbnailAsync(photoId, userId)).ReturnsAsync(photoFileDto);
+
+        // Act
+        var result = await _controller.GetPhotoThumbnail(photoId);
+
+        // Assert
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal(photoFileDto.FileData, fileResult.FileContents);
+        Assert.Equal(photoFileDto.ContentType, fileResult.ContentType);
+        Assert.Equal(photoFileDto.FileName, fileResult.FileDownloadName);
+    }
+
+    [Fact]
+    public async Task GetPhotoThumbnail_ReturnsNotFound_WhenPhotoDoesNotExist()
+    {
+        // Arrange
+        var userId = 1;
+        var photoId = 1;
+
+        _mockService.Setup(s => s.GetPhotoThumbnailAsync(photoId, userId)).ReturnsAsync((PhotoFileDto?)null);
+
+        // Act
+        var result = await _controller.GetPhotoThumbnail(photoId);
+
+        // Assert
+        var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, notFoundResult.StatusCode);
+        Assert.NotNull(notFoundResult.Value);
+        Assert.Equal(new { message = "Photo not found", photoId = photoId }.ToString(), notFoundResult.Value.ToString());
+    }
+
+    [Fact]
+    public async Task GetPhotoThumbnail_ReturnsBadRequest_WhenUnauthorizedAccessExceptionIsThrown()
+    {
+        // Arrange
+        var userId = 1;
+        var photoId = 1;
+        var exceptionMessage = "Unauthorized access";
+
+        _mockService.Setup(s => s.GetPhotoThumbnailAsync(photoId, userId)).ThrowsAsync(new UnauthorizedAccessException(exceptionMessage));
+
+        // Act
+        var result = await _controller.GetPhotoThumbnail(photoId);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        Assert.Equal(exceptionMessage, badRequestResult.Value);
+    }
+
+    [Fact]
     public async Task DeletePhoto_ReturnsOkResult_WhenPhotoIsDeleted()
     {
         // Arrange

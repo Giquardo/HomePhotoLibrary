@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 namespace PhotoAlbumApi.Services;
 public interface IImageService
@@ -9,12 +12,16 @@ public interface IImageService
     Task<string> DownloadImageAsync(string imageUrl);
     Task<string> SaveUploadedFileAsync(IFormFile file);
     void DeleteFile(string filePath);
+    string GetThumbnailPath(string originalFilePath);
+    Task<string> GetOrCreateThumbnailAsync(string originalFilePath);
 }
 
 public class ImageService : IImageService
 {
     private const long MaxUploadSizeBytes = 20 * 1024 * 1024; // 20 MB
     private const int MaxRedirects = 3;
+    private const int ThumbnailMaxDimension = 320;
+    private const int ThumbnailJpegQuality = 75;
     public const string DownloadHttpClientName = "ImageDownload";
 
     private readonly string _filesBasePath;
@@ -86,6 +93,48 @@ public class ImageService : IImageService
         if (File.Exists(filePath))
         {
             File.Delete(filePath);
+        }
+    }
+
+    public string GetThumbnailPath(string originalFilePath)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(originalFilePath) + ".jpg";
+        return Path.Combine(_filesBasePath, "Thumbnails", fileName);
+    }
+
+    // Generates and caches a small JPEG thumbnail on first request; every
+    // request after that just reads the cached file. Falls back to returning
+    // the original path (rather than throwing) if the source can't be
+    // decoded, so a photo that can't be thumbnailed still displays fine.
+    public async Task<string> GetOrCreateThumbnailAsync(string originalFilePath)
+    {
+        var thumbnailPath = GetThumbnailPath(originalFilePath);
+        if (File.Exists(thumbnailPath))
+        {
+            return thumbnailPath;
+        }
+
+        try
+        {
+            using var image = await Image.LoadAsync(originalFilePath);
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(ThumbnailMaxDimension, ThumbnailMaxDimension)
+            }));
+
+            var thumbnailDir = Path.GetDirectoryName(thumbnailPath)!;
+            if (!Directory.Exists(thumbnailDir))
+            {
+                Directory.CreateDirectory(thumbnailDir);
+            }
+
+            await image.SaveAsJpegAsync(thumbnailPath, new JpegEncoder { Quality = ThumbnailJpegQuality });
+            return thumbnailPath;
+        }
+        catch (UnknownImageFormatException)
+        {
+            return originalFilePath;
         }
     }
 

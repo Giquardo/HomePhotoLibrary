@@ -293,6 +293,28 @@ namespace PhotoAlbumApi.Controllers
             }
         }
 
+        [HttpGet("thumbnail/{id}")]
+        public async Task<IActionResult> GetPhotoThumbnail(int id)
+        {
+            try
+            {
+                var userId = GetUserId();
+
+                var photoFileDto = await _service.GetPhotoThumbnailAsync(id, userId);
+                if (photoFileDto == null)
+                {
+                    return NotFound(new { message = "Photo not found", photoId = id });
+                }
+
+                return File(photoFileDto.FileData, photoFileDto.ContentType, photoFileDto.FileName);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _loggingService.LogError(ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePhoto(int id)
         {
