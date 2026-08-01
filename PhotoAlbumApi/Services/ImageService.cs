@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.Processing;
 
 namespace PhotoAlbumApi.Services;
@@ -22,7 +23,26 @@ public class ImageService : IImageService
     private const int MaxRedirects = 3;
     private const int ThumbnailMaxDimension = 320;
     private const int ThumbnailJpegQuality = 75;
+    // Bounds how much memory ImageSharp will allocate decoding a single
+    // source image, so a file with small on-disk size but maliciously huge
+    // declared pixel dimensions (a "decompression bomb") can't force an
+    // unbounded allocation - it throws instead, and the caller falls back
+    // to serving the original untouched. Generous enough for any realistic
+    // photo within the existing 20MB upload cap.
+    private const long ThumbnailDecodeMemoryLimitMegabytes = 512;
     public const string DownloadHttpClientName = "ImageDownload";
+
+    // Per-call Configuration overrides (e.g. via DecoderOptions) are not
+    // reliably honored by every decoder's internal allocation path - ImageSharp's
+    // own docs call out Configuration.Default.MemoryAllocator as the supported
+    // way to change this, so it's set once here rather than per-call.
+    static ImageService()
+    {
+        Configuration.Default.MemoryAllocator = MemoryAllocator.Create(new MemoryAllocatorOptions
+        {
+            AllocationLimitMegabytes = (int)ThumbnailDecodeMemoryLimitMegabytes
+        });
+    }
 
     private readonly string _filesBasePath;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -132,8 +152,12 @@ public class ImageService : IImageService
             await image.SaveAsJpegAsync(thumbnailPath, new JpegEncoder { Quality = ThumbnailJpegQuality });
             return thumbnailPath;
         }
-        catch (UnknownImageFormatException)
+        catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException or InvalidMemoryOperationException)
         {
+            // Undecodable, malformed, or too large to safely decode (a
+            // "decompression bomb": small file, huge declared dimensions) -
+            // all fall back to serving the original untouched rather than
+            // failing the request.
             return originalFilePath;
         }
     }
