@@ -155,12 +155,15 @@ public class Program
 
             // Cheap defense-in-depth on the public share endpoints. The share
             // token's entropy already makes brute-forcing infeasible; this just
-            // slows down casual scraping/abuse.
+            // slows down casual scraping/abuse. 150/min accounts for a normal
+            // page load firing one thumbnail request per photo in the album
+            // (SharedAlbum.razor has no pagination) - a lower limit here would
+            // rate-limit legitimate visitors on larger albums, not just abuse.
             options.AddPolicy("share", context => RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
-                    PermitLimit = 30,
+                    PermitLimit = 150,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0
                 }));
